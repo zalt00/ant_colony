@@ -7,6 +7,41 @@ use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 use crate::my_rand::{irwin_hall, my_rand, radamacher};
 
 
+pub struct Uf(Vec<isize>);
+
+impl Uf {
+    pub fn find(&mut self, i: usize) -> Option<isize> {
+        let v = self.0.get(i)?;
+        if *v < 0 {
+            Some(i as isize)
+        } else {
+            let v2 = *v as usize;
+            let c = self.find(v2)?;
+            self.0[i] = c;
+            Some(c)
+        }
+    }
+
+    pub fn union(&mut self, i1: usize, i2: usize) -> Option<()> {
+        let c1 = self.find(i1)?;
+        let c2 = self.find(i2)?;
+        let s1 = self.0[c1 as usize];
+        let s2 = self.0[c2 as usize];
+        if s1 < s2 {  // |c1| > |c2|
+            self.0[c2 as usize] = c1;
+            self.0[c1 as usize] = s1 + s2;
+        } else {
+            self.0[c1 as usize] = c2;
+            self.0[c2 as usize] = s1 + s2;
+        }
+        Some(())
+    }
+
+    pub fn init(n: usize) -> Uf {
+        Uf(vec![-1; n])
+    }
+}
+
 
 pub const N: usize = 10000;
 
@@ -228,7 +263,9 @@ pub struct ACO {
 
     edges: Vec<[usize; 2]>,
 
-    edge_betweeness_centrality: Vec<f64>
+    edge_betweeness_centrality: Vec<f64>,
+
+    uf: Uf
 }
 
 impl ACO {
@@ -261,7 +298,8 @@ impl ACO {
             possible_edges: vec![], covered_vertices: vec![false; n],
             prng: Xoshiro256PlusPlus::seed_from_u64(1245),
             edges,
-            edge_betweeness_centrality
+            edge_betweeness_centrality,
+            uf: Uf::init(n)
         }
     }
 
@@ -292,26 +330,34 @@ impl ACO {
     
     pub fn update_possible_edges(&mut self, edge_to_remove: usize) -> [usize; 2] {
         let edge = self.possible_edges.swap_remove(edge_to_remove);
+        self.possible_edges.clear();
 
-        debug_assert!(self.covered_vertices[edge[0]] != self.covered_vertices[edge[1]]);
+        self.uf.union(edge[0], edge[1]);
 
-        let new_vertex = if self.covered_vertices[edge[0]] {edge[1]} else {edge[0]};
-        self.covered_vertices[new_vertex] = true;
-        let mut i = 0;
-        while i < self.possible_edges.len() {
-            let e2 = self.possible_edges.get_mut(i).unwrap();
-            if e2[0] == new_vertex || e2[1] == new_vertex {
-                self.possible_edges.swap_remove(i);
-            } else {
-                i+=1;
+        for edge in self.edges.iter() {
+            if self.uf.find(edge[0]).unwrap() != self.uf.find(edge[1]).unwrap() {
+                self.possible_edges.push(*edge);
             }
         }
+        // debug_assert!(self.covered_vertices[edge[0]] != self.covered_vertices[edge[1]]);
 
-        for &v in self.g.get_neighbors(new_vertex) {
-            if !self.covered_vertices[v] {
-                self.possible_edges.push([new_vertex, v])
-            }
-        }
+        // let new_vertex = if self.covered_vertices[edge[0]] {edge[1]} else {edge[0]};
+        // self.covered_vertices[new_vertex] = true;
+        // let mut i = 0;
+        // while i < self.possible_edges.len() {
+        //     let e2 = self.possible_edges.get_mut(i).unwrap();
+        //     if e2[0] == new_vertex || e2[1] == new_vertex {
+        //         self.possible_edges.swap_remove(i);
+        //     } else {
+        //         i+=1;
+        //     }
+        // }
+
+        // for &v in self.g.get_neighbors(new_vertex) {
+        //     if !self.covered_vertices[v] {
+        //         self.possible_edges.push([new_vertex, v])
+        //     }
+        // }
         edge
     }
 
@@ -336,13 +382,16 @@ impl ACO {
     pub fn init_origin(&mut self) {
         self.covered_vertices.fill(false);
         self.possible_edges.clear();
+        self.uf = Uf::init(self.n);
         let origin = (self.prng.next_u64() % self.n as u64) as usize;
 
         self.covered_vertices[origin] = true;
 
-        for v in self.g.get_neighbors(origin) {
-            self.possible_edges.push([origin, *v])
-        }
+        // for v in self.g.get_neighbors(origin) {
+        //     self.possible_edges.push([origin, *v])
+        // }
+
+        self.possible_edges = self.edges.clone();
 
     }
 
