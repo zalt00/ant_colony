@@ -105,8 +105,8 @@ pub fn basic_hyperparameter_search(grs: &Vec<Graph>) {
     let mut glob_best_alpha = Par { val: 1.2, bounds: [0.0, 5.0], std: 0.0 };
     let mut glob_best_beta = Par { val: 1.5, bounds: [0.0, 5.0], std: 0.0 };
 
-    let mut glob_best_max_tau = Par { val: 1000.0, bounds: [0.5, 1000.0], std: 0.0 };
-    let mut glob_best_interval_tau = Par { val: 999.9, bounds: [0.5, 1000.0], std: 0.0 };
+    let mut glob_best_max_tau = Par { val: 10.0, bounds: [0.5, 1000.0], std: 0.0 };
+    let mut glob_best_interval_tau = Par { val: 9.9, bounds: [0.5, 1000.0], std: 0.0 };
 
     let mut prng = Xoshiro256PlusPlus::seed_from_u64(121242);
 
