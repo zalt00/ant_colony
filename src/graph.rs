@@ -1,45 +1,14 @@
-use std::{fmt::Debug, fs::File, io::{BufWriter, Read}, u32};
+use std::{fmt::Debug, u32};
 
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
+use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
+
+use crate::my_rand::{irwin_hall, my_rand, radamacher};
+
 
 
 pub const N: usize = 10000;
-
-pub struct Uf(Vec<isize>);
-
-impl Uf {
-    pub fn find(&mut self, i: usize) -> Option<isize> {
-        let v = self.0.get(i)?;
-        if *v < 0 {
-            Some(i as isize)
-        } else {
-            let v2 = *v as usize;
-            let c = self.find(v2)?;
-            self.0[i] = c;
-            Some(c)
-        }
-    }
-
-    pub fn union(&mut self, i1: usize, i2: usize) -> Option<()> {
-        let c1 = self.find(i1)?;
-        let c2 = self.find(i2)?;
-        let s1 = self.0[c1 as usize];
-        let s2 = self.0[c2 as usize];
-        if s1 < s2 {  // |c1| > |c2|
-            self.0[c2 as usize] = c1;
-            self.0[c1 as usize] = s1 + s2;
-        } else {
-            self.0[c1 as usize] = c2;
-            self.0[c2 as usize] = s1 + s2;
-        }
-        Some(())
-    }
-
-    pub fn init(n: usize) -> Uf {
-        Uf(vec![-1; n])
-    }
-}
 
 pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
     let mut s= String::new();
@@ -64,8 +33,57 @@ impl Graph {
         Graph { n, adj_tab: vec![0; n*(n+1)] }
     }
 
+    pub fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
+        use rustworkx_core::petgraph;
+        use rustworkx_core::centrality::edge_betweenness_centrality;
+
+        let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
+        
+        let output = edge_betweenness_centrality(&g, true, 50);
+        let mut mat = vec![0.0; self.n*self.n];
+
+        for i in g.edge_indices() {
+            let endpoints = g.edge_endpoints(i).unwrap();
+            let bt = output[EdgeIndexable::to_index(&g, i)].unwrap();
+            let u = NodeIndexable::to_index(&g, endpoints.0);
+            let v = NodeIndexable::to_index(&g, endpoints.1);
+
+            mat[u + self.n * v] = bt;
+            mat[v + self.n * u] = bt;
+        }
+
+        mat
+    }
+
+
     pub fn get_neighboor_count_unchecked(&self, i: usize) -> usize {
         self.adj_tab[i * self.n]
+    }
+
+    pub fn get_edges(&self) -> Vec<[usize; 2]> {
+        let mut edges = vec![];
+
+        for i in 0..(self.n-1) {
+            for &j in self.get_neighbors(i) {
+                if j > i {
+                    edges.push([i, j])
+                }
+            }
+        }
+        edges
+    }
+
+    pub fn get_edges_tpl(&self) -> Vec<(u32, u32)> {
+        let mut edges = vec![];
+
+        for i in 0..(self.n-1) {
+            for &j in self.get_neighbors(i) {
+                if j > i {
+                    edges.push((i as u32, j as u32))
+                }
+            }
+        }
+        edges
     }
 
     pub fn incr_neighboor_count_unchecked(&mut self, i: usize) {
@@ -167,6 +185,26 @@ impl Graph {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Par<T> {
+    pub(crate) val: T,
+    pub(super) bounds: [T; 2],
+    pub(super) std: T
+}
+
+impl Par<f64> {
+    pub fn derive(&self, prng: &mut Xoshiro256PlusPlus, p: f64) -> Par<f64> {
+        let mut prev = self.clone();
+        prev.val += irwin_hall(prng) * self.std / p;
+        prev.val = prev.val.clamp(self.bounds[0], self.bounds[1]);
+
+        prev
+    }
+
+    pub fn new_free(val: f64) -> Par<f64> {
+        Par { val, bounds: [0.0, 10.0], std: 0.0 }
+    }
+}
 
 pub struct ACO {
     n: usize,
@@ -174,25 +212,32 @@ pub struct ACO {
     dist_matrix: Vec<u32>,
     tree: Graph,
     tree_dist_matrix: Vec<u32>,
-    tau_matrix: Vec<f64>,
+    pub tau_matrix: Vec<f64>,
     k: usize,
-    alpha: u32,
-    c: f64,
-    evap: f64,
+    alpha: Par<f64>,
+    beta: Par<f64>,
+    c: Par<f64>,
+    evap: Par<f64>,
+    max_tau: Par<f64>,
+    interval_tau: Par<f64>,
 
     possible_edges: Vec<[usize; 2]>,
     covered_vertices: Vec<bool>,
 
     prng: Xoshiro256PlusPlus,
 
-    edges: Vec<[usize; 2]>
+    edges: Vec<[usize; 2]>,
+
+    edge_betweeness_centrality: Vec<f64>
 }
 
 impl ACO {
-    pub fn new(g: Graph, k: usize, alpha: u32, c: f64, evap: f64) -> ACO {
+    pub fn new(g: Graph, k: usize, alpha: Par<f64>, beta: Par<f64>, c: Par<f64>, evap: Par<f64>,
+    max_tau: Par<f64>, interval_tau: Par<f64>) -> ACO {
         let n = g.n;
         let dist_matrix = g.get_dist_matrix();
         let tree_dist_matrix = vec![u32::MAX; n*n];
+        let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
 
         let mut edges = vec![];
 
@@ -204,12 +249,36 @@ impl ACO {
             }
         }
 
+        let mut tau_matrix = vec![-1.0; n * n];
+        for [i, j] in edges.iter() {
+            tau_matrix[*i + n * *j] = 1.0;
+            tau_matrix[*j + n * *i] = 1.0;
+        }
+
         ACO { n, g, dist_matrix, tree: Graph::new_empty(n), tree_dist_matrix,
-            tau_matrix: vec![1.0; n * n], k, alpha, c, evap,
+            tau_matrix, k, alpha, beta, c, evap,
+            max_tau, interval_tau,
             possible_edges: vec![], covered_vertices: vec![false; n],
             prng: Xoshiro256PlusPlus::seed_from_u64(1245),
-            edges
+            edges,
+            edge_betweeness_centrality
         }
+    }
+
+    pub fn get_tau_tab_info(&self) -> (f64, f64) {
+        let mut m = 0.0;
+        let mut c = 0;
+        let mut cm = 0.0_f64;
+
+        for i in 0..(self.n * self.n) {
+            if self.tau_matrix[i] > -0.5 {
+                m += self.tau_matrix[i];
+                cm = cm.max(self.tau_matrix[i]);
+                c += 1;
+            }
+        }
+
+        (m / c as f64, cm)
     }
 
     pub fn cost(&mut self) -> f64 {
@@ -217,8 +286,8 @@ impl ACO {
     }
 
     pub fn gain_of_edge(&self, i: usize, j: usize) -> f64 {
-        // pour le moment, pas d'heuristique
-        self.tau_matrix[i + self.n * j].powi(self.alpha as i32)
+        self.tau_matrix[i + self.n * j].powf(self.alpha.val) 
+            * self.edge_betweeness_centrality[i + self.n * j].powf(self.beta.val)
     }
     
     pub fn update_possible_edges(&mut self, edge_to_remove: usize) -> [usize; 2] {
@@ -256,6 +325,8 @@ impl ACO {
         for (i, e) in self.possible_edges.iter().enumerate() {
             cs += self.gain_of_edge(e[0], e[1]);
             if cs >= r * s {
+                //println!("g: {} {}", self.gain_of_edge(e[0], e[1]) / s * self.possible_edges.len() as f64, self.tau_matrix[e[0] + self.n*e[1]]);
+
                 return i;
             }
         }
@@ -278,9 +349,10 @@ impl ACO {
     pub fn launch(&mut self, iter_count: usize) -> (f64, Graph) {
         let mut cur_best_disto = f64::INFINITY;
         let mut cur_best_tree = Graph::new_empty(self.n);
+        let mut cur_best_tree_edges = vec![];
         
         let mut ant_edges: Vec<Vec<[usize; 2]>> = vec![vec![]; self.k];
-        let mut dist_values = vec![0.0; self.k];
+        let mut dist_values = vec![(0.0, 0); self.k];
 
         for _iter_index in 0..iter_count {
             for ant in 0..self.k {
@@ -298,24 +370,52 @@ impl ACO {
                 }
                 let disto = self.tree.distorsion(&mut self.tree_dist_matrix, &self.dist_matrix);
                 // println!("disto: {}", disto);
-                dist_values[ant] = disto;
+                dist_values[ant] = (disto, ant);
 
                 if disto < cur_best_disto {
                     cur_best_disto = disto;
                     cur_best_tree = self.tree.clone();
+                    cur_best_tree_edges = cur_best_tree.get_edges();
                 }
             }
             for edge in self.edges.iter() {
-                self.tau_matrix[edge[0] + self.n * edge[1]] *= 1.0 - self.evap;
-                self.tau_matrix[edge[1] + self.n * edge[0]] *= 1.0 - self.evap;
+                self.tau_matrix[edge[0] + self.n * edge[1]] *= (1.0 - self.evap.val).powi(self.k as i32);
+                self.tau_matrix[edge[1] + self.n * edge[0]] *= (1.0 - self.evap.val).powi(self.k as i32);
             }
-            for ant in 0..self.k {
-                for edge in ant_edges[ant].drain(..) {
-                    let dtau = self.c / dist_values[ant];
 
-                    self.tau_matrix[edge[0] + self.n * edge[1]] += dtau;
-                    self.tau_matrix[edge[1] + self.n * edge[0]] += dtau;
-                }
+            dist_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            // for ant in 0..self.k {
+            //     for edge in ant_edges[ant].drain(..) {
+            //         let dtau = self.c.val / dist_values[ant].powi(20);
+
+            //         self.tau_matrix[edge[0] + self.n * edge[1]] += dtau;
+            //         self.tau_matrix[edge[1] + self.n * edge[0]] += dtau;
+            //     }
+            // }
+            //println!("{:?}", dist_values);
+            // let best_ant = dist_values[0].1;
+            // let best_disto = dist_values[0].0;
+            // for edge in ant_edges[best_ant].iter() {
+            //     let dtau = self.c.val / best_disto.powi(3);
+
+            //     self.tau_matrix[edge[0] + self.n * edge[1]] += dtau;
+            //     self.tau_matrix[edge[1] + self.n * edge[0]] += dtau;
+            // }
+
+            for edge in cur_best_tree_edges.iter() {
+                let dtau = self.c.val / cur_best_disto.powi(3);
+
+                self.tau_matrix[edge[0] + self.n * edge[1]] += dtau;
+                self.tau_matrix[edge[1] + self.n * edge[0]] += dtau;
+            }
+
+
+
+            for edge in self.edges.iter() {
+                let v = self.tau_matrix[edge[0] + self.n * edge[1]]
+                    .clamp(self.max_tau.val - self.interval_tau.val, self.max_tau.val);
+                self.tau_matrix[edge[0] + self.n * edge[1]] = v;
+                self.tau_matrix[edge[1] + self.n * edge[0]] = v;
             }
 
             //println!("{:?}", self.tau_matrix);

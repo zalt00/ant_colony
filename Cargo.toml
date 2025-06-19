@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 rand = "*"
 rand_xoshiro = "*"
-rustworkx_core = "*"
+rustworkx-core = "*"
 petgraph = "*"

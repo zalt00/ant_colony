@@ -61,7 +61,7 @@ def afficher_graphe_adj(adj_matrix: np.ndarray):
     G = nx.from_numpy_array(adj_matrix)
     
     # On calcule une disposition des nœuds (layout) avec spring_layout pour une bonne visualisation
-    pos = nx.kamada_kawai_layout(G)  # seed pour reproductibilité
+    pos = nx.circular_layout(G)  # seed pour reproductibilité
     #pos = nx.spring_layout(G, seed=42)  # seed pour reproductibilité
     #pos = nx.shell_layout(G)  # seed pour reproductibilité
 
@@ -69,6 +69,109 @@ def afficher_graphe_adj(adj_matrix: np.ndarray):
     nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray',
             node_size=500, font_size=10)
     plt.show()
+
+
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def afficher_graphe_adj(adj_matrix: np.ndarray):
+    """
+    Affiche le graphe correspondant à la matrice d'adjacence passée en argument,
+    avec des arêtes dont l'épaisseur est proportionnelle à leur poids.
+
+    Paramètres :
+      - adj_matrix : numpy.ndarray
+          La matrice d'adjacence représentant le graphe (matrice carrée).
+    """
+    # Créer le graphe à partir de la matrice (les nœuds seront numérotés de 0 à n-1)
+    G = nx.from_numpy_array(adj_matrix)
+
+    # Calculer une disposition des nœuds pour une bonne visualisation
+    pos = nx.circular_layout(G)
+    # pos = nx.spring_layout(G, seed=42)
+    # pos = nx.shell_layout(G)
+
+    # Calculer l'épaisseur des arêtes à partir de leur poids
+    # Si le poids n'est pas défini, on considère une valeur par défaut égale à 1
+    widths = [G[u][v].get('weight', 1) for u, v in G.edges()]
+
+    # Ajuster l'échelle de l'épaisseur pour une meilleure visibilité
+    facteur_echelle = 2  # Vous pouvez modifier ce facteur selon vos préférences
+    widths = [facteur_echelle * w for w in widths]
+
+    # Afficher le graphe en passant la liste des épaisseurs pour les arêtes
+    nx.draw(G, pos, with_labels=True,
+            node_color='lightblue', edge_color='gray',
+            node_size=500, font_size=10, width=widths)
+    plt.show()
+
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def afficher_graphe_adj(adj_matrix: np.ndarray, edges_highlight=None):
+    """
+    Affiche le graphe correspondant à la matrice d'adjacence passée en argument,
+    avec :
+      - des arêtes dont l'épaisseur est proportionnelle à leur poids,
+      - un surlignage (couleur différente) sur certaines arêtes de la liste edges_highlight.
+
+    Paramètres :
+      - adj_matrix : numpy.ndarray
+          La matrice d'adjacence représentant le graphe (matrice carrée).
+      - edges_highlight : list of tuple (optionnel)
+          Liste d'arêtes à mettre en valeur.
+          Chaque arête doit être représentée par un tuple (u, v) où u et v sont des nœuds.
+          Pour un graphe non orienté, (u, v) et (v, u) seront considérés comme identiques.
+    """
+    # Créer le graphe à partir de la matrice
+    G = nx.from_numpy_array(adj_matrix)
+    
+    # Détermination de la disposition (layout) des nœuds
+    pos = nx.spring_layout(G, seed=12)
+    # Vous pouvez essayer circular_layout, shell_layout, etc.
+
+    # Facteur d'échelle pour l'épaisseur des arêtes
+    facteur_echelle = 2
+
+    # Si aucune arête à mettre en valeur n'est précisée, on crée une liste vide
+    if edges_highlight is None:
+        edges_highlight = []
+    
+    # Pour un graphe non dirigé, on normalise les arêtes en triant chaque tuple
+    highlight_set = {tuple(sorted(edge)) for edge in edges_highlight}
+
+    # Séparer les arêtes entre celles à mettre en couleur et les autres
+    edges_autres = []
+    widths_autres = []
+    edges_en_haut = []
+    widths_en_haut = []
+
+    for u, v in G.edges():
+        # Récupérer le poids de l'arête ou 1 par défaut
+        poids = G[u][v].get('weight', 1)
+        largeur = poids * facteur_echelle
+        # Pour un graphe non orienté, on vérifie dans le set avec tuple trié
+        if tuple(sorted((u, v))) in highlight_set:
+            edges_en_haut.append((u, v))
+            widths_en_haut.append(largeur)
+        else:
+            edges_autres.append((u, v))
+            widths_autres.append(largeur)
+    
+    # Dessiner les nœuds et les labels
+    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=500)
+    nx.draw_networkx_labels(G, pos, font_size=10)
+    
+    # Dessiner d'abord les arêtes "classiques" en gris
+    nx.draw_networkx_edges(G, pos, edgelist=edges_autres, width=widths_autres, edge_color='gray')
+    # Puis dessiner par-dessus les arêtes à mettre en évidence en rouge
+    nx.draw_networkx_edges(G, pos, edgelist=edges_en_haut, width=widths_en_haut, edge_color='red')
+    
+    plt.show()
+
+
 
 
 def floyd_warshall(adj):
@@ -179,12 +282,18 @@ def resolve(g):
 
 if __name__ == '__main__':
     random.seed(1212)
-    n = 100
+    n = 50
     with open("test.graph", "w") as file:
         for j in range(400):
             print(j)
             g = random_graph(n)
-            
+            #afficher_graphe_adj(g)
+
+            gr = nx.from_numpy_array(g)
+
+            import time
+
+            #print(dict(nx.edge_betweenness_centrality(nx.from_numpy_array(g))))
             
             (disto, t) = (1.0, None) #resolve(g)
 
@@ -205,7 +314,15 @@ if __name__ == '__main__':
             print(n, end="|", file=file)
             print(*[f"{i},{j}" for (i, j) in edges], sep=";", end="::", file=file)
         
+tau = [-1.0, -1.0, -1.0, -1.0, 1.8307503491130612, -1.0, 0.8781289773971983, 1.8159029306608532, -1.0, -1.0, 0.8337121232265541, -1.0, 0.10000000000002274, 0.9357809567622959, -1.0, -1.0, -1.0, 1.8231358805112732, 0.4630104816217597, -1.0, -1.0, -1.0, 3.068528074287574, 0.39693026626077427, 0.10000000000002274, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.8231358805112732, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.2800511522589346, 2.3076420159681676, 3.254405139452447, -1.0, 1.4390917579856795, 1.3882846438545593, -1.0, 0.4630104816217597, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 2.14416590821575, -1.0, -1.0, -1.0, 3.7232768781629524, -1.0, 1.8307503491130612, -1.0, -1.0, -1.0, -1.0, 0.44333129563210133, 2.6728680641139717, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.813172316761992, -1.0, -1.0, -1.0, -1.0, 0.44333129563210133, -1.0, 1.4421014895183741, -1.0, -1.0, -1.0, -1.0, -1.0, 4.097960466523611, -1.0, 1.8340248302675377, 0.8781289773971983, -1.0, -1.0, -1.0, 2.6728680641139717, 1.4421014895183741, -1.0, -1.0, 2.192663301317709, -1.0, -1.0, 3.1448275163440003, 0.8302925177685113, 0.9601926189736743, -1.0, 1.8159029306608532, 3.068528074287574, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.10000000000002274, -1.0, -1.0, 1.8220481497936052, 1.8633990501812303, -1.0, -1.0, 0.39693026626077427, -1.0, -1.0, -1.0, -1.0, 2.192663301317709, -1.0, -1.0, 0.9313593110898117, -1.0, -1.0, 0.9515677990303903, 1.3771559762382315, -1.0, -1.0, 0.10000000000002274, 1.2800511522589346, 2.14416590821575, -1.0, -1.0, -1.0, 0.10000000000002274, 0.9313593110898117, -1.0, 0.8226111398698944, -1.0, 0.94612888212744, 0.48784364087832954, 2.7142791742511574, 0.8337121232265541, -1.0, 2.3076420159681676, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.8226111398698944, -1.0, -1.0, 1.396039860533306, -1.0, 0.4478337956889477, -1.0, -1.0, 3.254405139452447, -1.0, -1.0, -1.0, 3.1448275163440003, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.10000000000002274, -1.0, -1.0, -1.0, -1.0, 4.097960466523611, 0.8302925177685113, 1.8220481497936052, 0.9515677990303903, 0.94612888212744, 1.396039860533306, -1.0, -1.0, 0.444045801247294, 0.10000000000002274, 0.9357809567622959, -1.0, 1.4390917579856795, 3.7232768781629524, -1.0, -1.0, 0.9601926189736743, 1.8633990501812303, 1.3771559762382315, 0.48784364087832954, -1.0, -1.0, 0.444045801247294, -1.0, 2.2087993517168636, -1.0, -1.0, 1.3882846438545593, -1.0, 1.813172316761992, 1.8340248302675377, -1.0, -1.0, -1.0, 2.7142791742511574, 0.4478337956889477, -1.0, 0.10000000000002274, 2.2087993517168636, -1.0]
+
+tau = np.array(tau).reshape((n, n))
+tau += 1
+
+edges = [[0, 13], [1, 8], [2, 11], [3, 9], [4, 14], [5, 14], [6, 12], [6, 13], [6, 11], [7, 12], [8, 12], [9, 12], [10, 12], [12, 14]]
 
 
+nx.from_numpy_array(tau)
+afficher_graphe_adj(tau, edges)
 
 
