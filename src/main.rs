@@ -3,10 +3,11 @@ use std::{fs::File, io::Read, thread::sleep, time::{Duration, Instant}};
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::graph::{repr, Graph, Par, ACO};
+use crate::{graph::{repr, Graph, Par, ACO, CHEPA}, greedy::greedy_algo};
 
 pub mod graph;
 pub mod my_rand;
+pub mod greedy;
 
 fn test_graph() {
     let mut s = String::new();
@@ -72,21 +73,33 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
     alpha: Par<f64>, beta: Par<f64>, c: Par<f64>, evap: Par<f64>, max_tau: Par<f64>,
     interval_tau: Par<f64>, iter_count: usize) -> f64 {
     
+    unsafe {CHEPA = 0.0};
+
     let mut s = 0.0;
+    let mut sg = 0.0;
     for (o, g) in grs[i..j].iter().enumerate() {
 
         let g2 = g.clone();
         let mut aco = ACO::new(g2, k, alpha, beta, c, evap, max_tau, interval_tau);
+        let disto = 0.0;
         let (disto, t) = aco.launch(iter_count);
-        println!("{:?}  {}", aco.get_tau_tab_info(), disto);
+
+        let disto2 = greedy_algo(&g);
+
+
+        println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+
+        
 
         //println!("{:?}", aco.tau_matrix);
         //println!("{:?}", t.get_edges());
 
         s += disto;
+        sg += disto2;
         //sleep(Duration::from_secs(2));
     }
-    println!("{}", s / (j-i) as f64);
+    println!("{} {}, greedy: {}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64);
+    
 
 
     s / (j-i) as f64
@@ -99,20 +112,21 @@ pub fn basic_hyperparameter_search(grs: &Vec<Graph>) {
     let tot_iter = 200;
     let mut glob_best_c = Par { val: 100.0, bounds: [0.1, 1000.0], std: 0.0 };
     let mut glob_best_evap = Par { val: 0.01, bounds: [0.0, 0.5], std: 0.0 };
-    let mut glob_best_k = 50;
-    let mut glob_best_ic = 10;
+    let mut glob_best_k = 10;
+    let mut glob_best_ic = 30* 40 * 10 / 10;
 
     let mut glob_best_alpha = Par { val: 1.2, bounds: [0.0, 5.0], std: 0.0 };
     let mut glob_best_beta = Par { val: 1.5, bounds: [0.0, 5.0], std: 0.0 };
 
-    let mut glob_best_max_tau = Par { val: 10.0, bounds: [0.5, 1000.0], std: 0.0 };
-    let mut glob_best_interval_tau = Par { val: 9.9, bounds: [0.5, 1000.0], std: 0.0 };
+    let mut glob_best_max_tau = Par { val: 16.0, bounds: [0.5, 1000.0], std: 0.0 };
+    let mut glob_best_interval_tau = Par { val: 15.8, bounds: [0.5, 1000.0], std: 0.0 };
 
     let mut prng = Xoshiro256PlusPlus::seed_from_u64(121242);
 
     let mut current_best_score = evaluate_score(grs, 0, 30,
         glob_best_k, glob_best_alpha, glob_best_beta, glob_best_c, glob_best_evap,
     glob_best_max_tau, glob_best_interval_tau, glob_best_ic);
+    return;
     sleep(Duration::from_secs(20));
     println!("halo");
     for k in [10, 15, 10, 20, 10, 15] {

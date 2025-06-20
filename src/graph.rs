@@ -1,5 +1,6 @@
-use std::{fmt::Debug, u32};
+use std::{fmt::Debug, time::Instant, u32};
 
+use rustworkx_core::petgraph;
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
@@ -28,9 +29,27 @@ pub struct Graph {
     pub(crate) adj_tab: Vec<usize>
 }
 
+pub static mut CHEPA: f64 = 0.0;
+
 impl Graph {
     pub fn new_empty(n: usize) -> Graph {
         Graph { n, adj_tab: vec![0; n*(n+1)] }
+    }
+
+    pub fn from_petgraph(pg: &petgraph::graph::UnGraph<u32, ()>) -> Graph {
+        let mut g = Graph::new_empty(pg.node_count());
+
+        for e in pg.raw_edges() {
+            let s = e.source();
+            let t = e.target();
+
+            let is = petgraph::visit::NodeIndexable::to_index(&pg, s);
+            let it = petgraph::visit::NodeIndexable::to_index(&pg, t);
+
+            g.add_edge_unckecked(is, it);
+
+        }
+        g
     }
 
     pub fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
@@ -90,6 +109,10 @@ impl Graph {
         self.adj_tab[i * self.n] += 1;
     }
 
+    pub fn decr_neighboor_count_unchecked(&mut self, i: usize) {
+        self.adj_tab[i * self.n] -= 1;
+    }
+
     pub fn add_edge_unckecked(&mut self, i: usize, j: usize) {
         let li = self.get_neighboor_count_unchecked(i);
         self.adj_tab[i * self.n + 1 + li as usize] = j;
@@ -98,6 +121,11 @@ impl Graph {
         let lj = self.get_neighboor_count_unchecked(j);
         self.adj_tab[j * self.n + 1 + lj as usize] = i;
         self.incr_neighboor_count_unchecked(j);
+    }
+
+    pub fn remove_edge_last_added_unckecked(&mut self, i: usize, j: usize) {
+        self.decr_neighboor_count_unchecked(i);
+        self.decr_neighboor_count_unchecked(j);
     }
 
     pub fn get_neighbors(&self, i: usize) -> &[usize] {
@@ -172,7 +200,7 @@ impl Graph {
         }
     }
 
-    pub fn distorsion(&self, dist_matrix: &mut Vec<u32>, parent_dist_matrix: &Vec<u32>) -> f64 {
+    pub fn distorsion(&mut self, dist_matrix: &mut Vec<u32>, parent_dist_matrix: &Vec<u32>) -> f64 {
         self.update_dist_matrix(dist_matrix);   
         let mut s = 0.0;
         for i in 0..(self.n * self.n) {
@@ -180,7 +208,6 @@ impl Graph {
                 s += dist_matrix[i] as f64 / parent_dist_matrix[i] as f64;
             }
         }
-
         s / self.n as f64 / (self.n-1) as f64
     }
 }
@@ -208,7 +235,7 @@ impl Par<f64> {
 
 pub struct ACO {
     n: usize,
-    g: Graph,
+    pub(crate) g: Graph,
     dist_matrix: Vec<u32>,
     tree: Graph,
     tree_dist_matrix: Vec<u32>,
@@ -286,11 +313,12 @@ impl ACO {
     }
 
     pub fn gain_of_edge(&self, i: usize, j: usize) -> f64 {
-        self.tau_matrix[i + self.n * j].powf(self.alpha.val) 
-            * self.edge_betweeness_centrality[i + self.n * j].powf(self.beta.val)
+        self.tau_matrix[i + self.n * j]//.powf(self.alpha.val) 
+            * self.edge_betweeness_centrality[i + self.n * j]//.powf(self.beta.val)
     }
     
     pub fn update_possible_edges(&mut self, edge_to_remove: usize) -> [usize; 2] {
+
         let edge = self.possible_edges.swap_remove(edge_to_remove);
 
         debug_assert!(self.covered_vertices[edge[0]] != self.covered_vertices[edge[1]]);
@@ -312,10 +340,14 @@ impl ACO {
                 self.possible_edges.push([new_vertex, v])
             }
         }
+
+
         edge
     }
 
     pub fn get_chosen_edge(&self, r: f64) -> usize {
+                let now: Instant = Instant::now();
+
         let mut s = 0.0;
         for e in self.possible_edges.iter() {
             s += self.gain_of_edge(e[0], e[1]);
@@ -326,6 +358,7 @@ impl ACO {
             cs += self.gain_of_edge(e[0], e[1]);
             if cs >= r * s {
                 //println!("g: {} {}", self.gain_of_edge(e[0], e[1]) / s * self.possible_edges.len() as f64, self.tau_matrix[e[0] + self.n*e[1]]);
+                unsafe{CHEPA += now.elapsed().as_secs_f64();}
 
                 return i;
             }
@@ -352,7 +385,7 @@ impl ACO {
         let mut cur_best_tree_edges = vec![];
         
         let mut ant_edges: Vec<Vec<[usize; 2]>> = vec![vec![]; self.k];
-        let mut dist_values = vec![(0.0, 0); self.k];
+        let mut dist_values: Vec<(f64, usize)> = vec![(0.0, 0); self.k];
 
         for _iter_index in 0..iter_count {
             for ant in 0..self.k {
@@ -360,9 +393,9 @@ impl ACO {
                 self.tree.adj_tab.fill(0);
                 for _march_advance in 0..(self.n-1) {
                     let r = self.prng.next_u64() as f64 / u64::MAX as f64;
-                    let ei = self.get_chosen_edge(r);
+                    let ei: usize = self.get_chosen_edge(r);
 
-                    let edge = self.update_possible_edges(ei);
+                    let edge: [usize; 2] = self.update_possible_edges(ei);
 
                     self.tree.add_edge_unckecked(edge[0], edge[1]);
 
