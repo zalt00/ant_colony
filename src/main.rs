@@ -87,7 +87,7 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
         let disto2 = greedy_algo(&g);
 
 
-        println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+        //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
         
 
@@ -98,7 +98,7 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
         sg += disto2;
         //sleep(Duration::from_secs(2));
     }
-    println!("{} {}, greedy: {}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64);
+    println!("{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg);
     
 
 
@@ -108,105 +108,117 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
 
 
-pub fn basic_hyperparameter_search(grs: &Vec<Graph>) {
-    let tot_iter = 200;
-    let mut glob_best_c = Par { val: 100.0, bounds: [0.1, 1000.0], std: 0.0 };
-    let mut glob_best_evap = Par { val: 0.01, bounds: [0.0, 0.5], std: 0.0 };
-    let mut glob_best_k = 10;
-    let mut glob_best_ic = 30* 40 * 10 / 10;
+pub fn test_on_graphs(grs: &Vec<Graph>, i: usize, j: usize) {
+    let c = Par { val: 100.0, bounds: [0.1, 1000.0], std: 0.0 };
+    let evap = Par { val: 0.01, bounds: [0.0, 0.5], std: 0.0 };
+    let k = 20;
+    let ic = 30* 40 * 20 / 10;
 
-    let mut glob_best_alpha = Par { val: 1.2, bounds: [0.0, 5.0], std: 0.0 };
-    let mut glob_best_beta = Par { val: 1.5, bounds: [0.0, 5.0], std: 0.0 };
+    let alpha = Par { val: 1.2, bounds: [0.0, 5.0], std: 0.0 };
+    let beta = Par { val: 1.5, bounds: [0.0, 5.0], std: 0.0 };
 
-    let mut glob_best_max_tau = Par { val: 16.0, bounds: [0.5, 1000.0], std: 0.0 };
-    let mut glob_best_interval_tau = Par { val: 15.8, bounds: [0.5, 1000.0], std: 0.0 };
+    let max_tau = Par { val: 16.0, bounds: [0.5, 1000.0], std: 0.0 };
+    let interval_tau = Par { val: 15.8, bounds: [0.5, 1000.0], std: 0.0 };
 
-    let mut prng = Xoshiro256PlusPlus::seed_from_u64(121242);
 
-    let mut current_best_score = evaluate_score(grs, 0, 30,
-        glob_best_k, glob_best_alpha, glob_best_beta, glob_best_c, glob_best_evap,
-    glob_best_max_tau, glob_best_interval_tau, glob_best_ic);
+    let current_best_score = evaluate_score(grs, i, j,
+        k, alpha, beta, c, evap,
+    max_tau, interval_tau, ic);
     return;
-    sleep(Duration::from_secs(20));
-    println!("halo");
-    for k in [10, 15, 10, 20, 10, 15] {
-        let n_iter = tot_iter / k;
-
-        let mut c = glob_best_c.derive(&mut prng, 1.0);
-        let mut evap = glob_best_evap.derive(&mut prng, 1.0);
-        let mut alpha = glob_best_alpha.derive(&mut prng, 1.0);
-        let mut beta = glob_best_beta.derive(&mut prng, 1.0);
-
-        let mut max_tau = glob_best_max_tau.derive(&mut prng, 1.0);
-        let mut interval_tau = glob_best_interval_tau.derive(&mut prng, 1.0);
-        //println!("{} {} {} {} {} {} {}", alpha.val, beta.val, c.val, evap.val, glob_best_ic, glob_best_k, current_best_score);
 
 
-        let mut score_prev = evaluate_score(grs, 0, 10, k, alpha, beta, c, evap,
-            max_tau, interval_tau, n_iter);
-        if score_prev < current_best_score {
-            current_best_score = score_prev;
-            glob_best_c = c;
-            glob_best_evap = evap;
-            glob_best_ic = n_iter;
-            glob_best_k = k;
-            glob_best_alpha = alpha;
-            glob_best_beta = beta;
-            glob_best_max_tau = max_tau;
-            glob_best_interval_tau = interval_tau;
-        }
-        for _ in 0..5 {
-            for p in 1..6 {
-                let c2 = c.derive(&mut prng, p as f64);
-                let evap2 = evap.derive(&mut prng, p as f64);
-                let alpha2 = alpha.derive(&mut prng, p as f64);
-                let beta2 = beta.derive(&mut prng, p as f64);
+}
 
-                let interval_tau2 = interval_tau.derive(&mut prng, p as f64);
-                let max_tau2 = max_tau.derive(&mut prng, p as f64);
+pub fn evaluate_score2(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
+    alpha: Par<f64>, beta: Par<f64>, c: Par<f64>, evap: Par<f64>, max_tau: Par<f64>,
+    interval_tau: Par<f64>, iter_count: usize) -> f64 {
+    
+    unsafe {CHEPA = 0.0};
 
-                let score = evaluate_score(grs, 0, 10, k, alpha2, beta2, c2, evap2,
-                    max_tau2, interval_tau2, n_iter);
-                if score < current_best_score {
-                    current_best_score = score;
-                    glob_best_c = c2;
-                    glob_best_evap = evap2;
-                    glob_best_ic = n_iter;
-                    glob_best_k = k;
-                    glob_best_alpha = alpha2;
-                    glob_best_beta = beta2;
+    let mut s = 0.0;
+    let mut sg = 0.0;
+    for (o, g) in grs[i..j].iter().enumerate() {
 
-                    glob_best_max_tau = max_tau2;
-                    glob_best_interval_tau = interval_tau2;
-                }
-                if score < score_prev {
-                    score_prev = score;
-                    c = c2;
-                    evap = evap2;
-                    alpha = alpha2;
-                    beta = beta2;
+        let g2 = g.clone();
+        let mut aco = ACO::new(g2, k, alpha, beta, c, evap, max_tau, interval_tau);
+        let disto = 0.0;
+        let (disto, t) = aco.launch(iter_count);
 
-                    max_tau = max_tau2;
-                    interval_tau = interval_tau2;
-                }
+        let disto2 = greedy_algo(&g);
 
-                println!("{} {} a={:.3} b={:.3} c={:.3} e={:.3} ic={:.3} k={:.3}    score={:.3}",
-                glob_best_max_tau.val, glob_best_interval_tau.val, glob_best_alpha.val, glob_best_beta.val, glob_best_c.val, glob_best_evap.val, glob_best_ic, glob_best_k, current_best_score);
 
-            }
+        //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
-        }
+        
+
+        //println!("{:?}", aco.tau_matrix);
+        //println!("{:?}", t.get_edges());
+
+        s += disto;
+        sg += disto2;
+        //sleep(Duration::from_secs(2));
     }
+    println!("{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg);
+    
+
+
+    s / (j-i) as f64
+}
+
+
+
+
+pub fn test_on_graphs2(grs: &Vec<Graph>, i: usize, j: usize) {
+    let c = Par { val: 100.0, bounds: [0.1, 1000.0], std: 0.0 };
+    let evap = Par { val: 0.01, bounds: [0.0, 0.5], std: 0.0 };
+    let k = 20;
+    let ic = 30* 40 * 20 / 10;
+
+    let alpha = Par { val: 1.2, bounds: [0.0, 5.0], std: 0.0 };
+    let beta = Par { val: 1.5, bounds: [0.0, 5.0], std: 0.0 };
+
+    let max_tau = Par { val: 16.0, bounds: [0.5, 1000.0], std: 0.0 };
+    let interval_tau = Par { val: 15.8, bounds: [0.5, 1000.0], std: 0.0 };
+
+
+    let current_best_score = evaluate_score2(grs, i, j,
+        k, alpha, beta, c, evap,
+    max_tau, interval_tau, ic);
+    return;
 
 
 }
 
 
 
-
 fn main() {
-    let grs = get_graphs();
-    let now = Instant::now();
-    basic_hyperparameter_search(&grs);
-    println!("{:#?}", now.elapsed());
+    let args: Vec<String> = std::env::args().collect();
+    //println!("{:?}", args);
+    if let Some(fg) = args.get(1) {
+        let i = 
+            if let Some(Some(i_)) = args.get(2).map(|s| {s.parse::<usize>().ok()}) {
+                i_
+            } else {
+                0
+            };
+
+        let j = 
+            if let Some(Some(j_)) = args.get(3).map(|s| {s.parse::<usize>().ok()}) {
+                j_
+            } else {
+                10
+            };
+        //println!("{} {}", i, j);
+        let grs = get_graphs();
+        //let now = Instant::now();
+        test_on_graphs(&grs, i, j);
+        //println!("{:#?}", now.elapsed());
+    } else {
+        let grs = get_graphs();
+        //let now = Instant::now();
+        test_on_graphs2(&grs, 34, 35);
+
+    }
+
+
 }
