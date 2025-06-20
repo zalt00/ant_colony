@@ -1,7 +1,5 @@
-use std::{fs::File, io::Read, thread::sleep, time::{Duration, Instant}};
+use std::{fs::File, io::Read, io::Write};
 
-use rand::{RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
 
 use crate::{graph::{repr, Graph, Par, ACO, CHEPA}, greedy::greedy_algo};
 
@@ -15,8 +13,8 @@ fn test_graph() {
 
     file.read_to_string(&mut s);
 
-    let mut coef_s = 0.0;
-    let mut coef_c = 0;
+    let coef_s = 0.0;
+    let coef_c = 0;
 
     for (i, gs) in s.split("::").enumerate() {
         let gstring = gs.trim().to_string();
@@ -49,8 +47,8 @@ pub fn get_graphs() -> Vec<Graph> {
     let mut v = vec![];
     file.read_to_string(&mut s);
 
-    let mut coef_s = 0.0;
-    let mut coef_c = 0;
+    let coef_s = 0.0;
+    let coef_c = 0;
 
     for (i, gs) in s.split("::").enumerate() {
         let gstring = gs.trim().to_string();
@@ -77,6 +75,7 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
     let mut s = 0.0;
     let mut sg = 0.0;
+    let mut sgs = 0.0;
     for (o, g) in grs[i..j].iter().enumerate() {
 
         let g2 = g.clone();
@@ -86,7 +85,8 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
         let disto2 = greedy_algo(&g);
 
-
+        let mut aco_dummy = ACO::new_dummy(g.clone());
+        let disto3 = aco_dummy.greedy_stretch();
         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
         
@@ -96,9 +96,10 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
         s += disto;
         sg += disto2;
+        sgs += disto3;
         //sleep(Duration::from_secs(2));
     }
-    println!("{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg);
+    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64, sgs / (j-i) as f64);
     
 
 
@@ -135,8 +136,10 @@ pub fn evaluate_score2(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
     
     unsafe {CHEPA = 0.0};
 
+    
     let mut s = 0.0;
     let mut sg = 0.0;
+    let mut sgs = 0.0;
     for (o, g) in grs[i..j].iter().enumerate() {
 
         let g2 = g.clone();
@@ -146,7 +149,11 @@ pub fn evaluate_score2(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
         let disto2 = greedy_algo(&g);
 
+        let mut output = File::create("trace.json").expect("welp");
+        writeln!(output, "{:?}", aco.trace);
 
+        let mut aco_dummy = ACO::new_dummy(g.clone());
+        let disto3 = aco_dummy.greedy_stretch();
         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
         
@@ -156,9 +163,10 @@ pub fn evaluate_score2(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
         s += disto;
         sg += disto2;
+        sgs += disto3;
         //sleep(Duration::from_secs(2));
     }
-    println!("{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg);
+    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64, sgs / (j-i) as f64);
     
 
 
@@ -216,7 +224,7 @@ fn main() {
     } else {
         let grs = get_graphs();
         //let now = Instant::now();
-        test_on_graphs2(&grs, 34, 35);
+        test_on_graphs2(&grs, 134, 135);
 
     }
 

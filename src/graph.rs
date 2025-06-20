@@ -1,3 +1,4 @@
+use core::f64;
 use std::{fmt::Debug, time::Instant, u32};
 
 use rustworkx_core::petgraph;
@@ -5,7 +6,7 @@ use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::my_rand::{irwin_hall, my_rand, radamacher};
+use crate::my_rand::irwin_hall;
 
 
 
@@ -58,7 +59,7 @@ impl Graph {
 
         let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
         
-        let output = edge_betweenness_centrality(&g, true, 50);
+        let output = edge_betweenness_centrality(&g, false, 50);
         let mut mat = vec![0.0; self.n*self.n];
 
         for i in g.edge_indices() {
@@ -210,6 +211,54 @@ impl Graph {
         }
         s / self.n as f64 / (self.n-1) as f64
     }
+
+    pub fn distorsion_approx(&mut self, dist_matrix: &mut Vec<u32>, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
+        self.update_dist_matrix(dist_matrix);   
+        let mut s = 0.0;
+        for e in edges.iter() {
+            s += dist_matrix[e[0] + self.n * e[1]] as f64 * ebc[e[0] + self.n * e[1]];
+        }
+
+        s / self.n as f64 / (self.n-1) as f64
+
+    }
+
+    pub fn ajout_sommet_arbre_recalculer_dist(&mut self, dist_matrix: &mut Vec<u32>, ens_sommets: &mut Vec<usize>, u: usize, parent: usize) {
+        for s in ens_sommets.iter() {
+            let v = dist_matrix[*s + self.n * parent];
+            dist_matrix[*s + self.n * u] = v + 1;
+            dist_matrix[u + self.n * *s] = v + 1;
+        }
+
+        ens_sommets.push(u);
+    }
+
+    pub fn annuler_recalcul(&mut self, dist_matrix: &mut Vec<u32>, ens_sommets: &mut Vec<usize>, u: usize) {
+        for s in ens_sommets.iter() {
+            dist_matrix[*s + self.n * u] = u32::MAX;
+            dist_matrix[u + self.n * *s] = u32::MAX;
+        }
+
+        ens_sommets.pop();
+    }
+
+    pub fn stretch_moyen(&self, parent_g: &Graph, dist_matrix: &Vec<u32>, ens_sommets: &Vec<usize>, sommet_dedans: &Vec<bool>) -> f64 {
+        
+        let mut s = 0;
+        let mut c = 0;
+        for u in ens_sommets.iter() {
+            //println!("ne {:?}", parent_g.get_neighbors(*u));
+            for v in parent_g.get_neighbors(*u) {
+                if sommet_dedans[*v] {
+                    s += dist_matrix[*u + self.n * *v];
+                    c += 1;
+                }
+            }
+        }
+
+        s as f64 / c as f64
+    }
+
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -233,12 +282,13 @@ impl Par<f64> {
     }
 }
 
+
 pub struct ACO {
-    n: usize,
+    pub(crate) n: usize,
     pub(crate) g: Graph,
-    dist_matrix: Vec<u32>,
-    tree: Graph,
-    tree_dist_matrix: Vec<u32>,
+    pub(crate) dist_matrix: Vec<u32>,
+    pub(crate) tree: Graph,
+    pub(crate) tree_dist_matrix: Vec<u32>,
     pub tau_matrix: Vec<f64>,
     k: usize,
     alpha: Par<f64>,
@@ -248,14 +298,15 @@ pub struct ACO {
     max_tau: Par<f64>,
     interval_tau: Par<f64>,
 
-    possible_edges: Vec<[usize; 2]>,
-    covered_vertices: Vec<bool>,
+    pub(crate) possible_edges: Vec<[usize; 2]>,
+    pub(crate) covered_vertices: Vec<bool>,
 
     prng: Xoshiro256PlusPlus,
 
     edges: Vec<[usize; 2]>,
 
-    edge_betweeness_centrality: Vec<f64>
+    edge_betweeness_centrality: Vec<f64>,
+    pub(crate) trace: Vec<f64>
 }
 
 impl ACO {
@@ -263,7 +314,11 @@ impl ACO {
     max_tau: Par<f64>, interval_tau: Par<f64>) -> ACO {
         let n = g.n;
         let dist_matrix = g.get_dist_matrix();
-        let tree_dist_matrix = vec![u32::MAX; n*n];
+        let mut tree_dist_matrix = vec![u32::MAX; n*n];
+        for i in 0..n {
+            tree_dist_matrix[i + n*i] = 0;
+        }
+
         let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
 
         let mut edges = vec![];
@@ -278,8 +333,8 @@ impl ACO {
 
         let mut tau_matrix = vec![-1.0; n * n];
         for [i, j] in edges.iter() {
-            tau_matrix[*i + n * *j] = 1.0;
-            tau_matrix[*j + n * *i] = 1.0;
+            tau_matrix[*i + n * *j] = max_tau.val;
+            tau_matrix[*j + n * *i] = max_tau.val;
         }
 
         ACO { n, g, dist_matrix, tree: Graph::new_empty(n), tree_dist_matrix,
@@ -288,7 +343,39 @@ impl ACO {
             possible_edges: vec![], covered_vertices: vec![false; n],
             prng: Xoshiro256PlusPlus::seed_from_u64(1245),
             edges,
-            edge_betweeness_centrality
+            edge_betweeness_centrality,
+            trace: vec![]
+        }
+    }
+
+    pub fn new_dummy(g: Graph) -> ACO {
+        let n = g.n;
+        let dist_matrix = g.get_dist_matrix();
+        let mut tree_dist_matrix = vec![u32::MAX; n*n];
+        for i in 0..n {
+            tree_dist_matrix[i + n*i] = 0;
+        }
+        let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
+
+        let mut edges = vec![];
+
+        for i in 0..(n-1) {
+            for &j in g.get_neighbors(i) {
+                if j > i {
+                    edges.push([i, j])
+                }
+            }
+        }
+
+        ACO { n, g, dist_matrix, tree: Graph::new_empty(n), tree_dist_matrix,
+            tau_matrix: vec![], k: 0, alpha: Par::new_free(0.0),
+            beta: Par::new_free(0.0), c: Par::new_free(0.0), evap: Par::new_free(0.0),
+            max_tau: Par::new_free(0.0), interval_tau: Par::new_free(0.0),
+            possible_edges: vec![], covered_vertices: vec![false; n],
+            prng: Xoshiro256PlusPlus::seed_from_u64(1245),
+            edges,
+            edge_betweeness_centrality,
+            trace: vec![]
         }
     }
 
@@ -313,8 +400,9 @@ impl ACO {
     }
 
     pub fn gain_of_edge(&self, i: usize, j: usize) -> f64 {
-        self.tau_matrix[i + self.n * j]//.powf(self.alpha.val) 
-            * self.edge_betweeness_centrality[i + self.n * j]//.powf(self.beta.val)
+        //println!("{}", self.edge_betweeness_centrality[i + self.n * j]);
+        self.tau_matrix[i + self.n * j] 
+            //* self.edge_betweeness_centrality[i + self.n * j].sqrt()//.powf(self.beta.val)
     }
     
     pub fn update_possible_edges(&mut self, edge_to_remove: usize) -> [usize; 2] {
@@ -323,7 +411,7 @@ impl ACO {
 
         debug_assert!(self.covered_vertices[edge[0]] != self.covered_vertices[edge[1]]);
 
-        let new_vertex = if self.covered_vertices[edge[0]] {edge[1]} else {edge[0]};
+        let new_vertex: usize = if self.covered_vertices[edge[0]] {edge[1]} else {edge[0]};
         self.covered_vertices[new_vertex] = true;
         let mut i = 0;
         while i < self.possible_edges.len() {
@@ -366,7 +454,7 @@ impl ACO {
         panic!()
     }
 
-    pub fn init_origin(&mut self) {
+    pub fn init_origin(&mut self) -> usize{
         self.covered_vertices.fill(false);
         self.possible_edges.clear();
         let origin = (self.prng.next_u64() % self.n as u64) as usize;
@@ -376,18 +464,35 @@ impl ACO {
         for v in self.g.get_neighbors(origin) {
             self.possible_edges.push([origin, *v])
         }
+        origin
 
     }
 
     pub fn launch(&mut self, iter_count: usize) -> (f64, Graph) {
-        let mut cur_best_disto = f64::INFINITY;
-        let mut cur_best_tree = Graph::new_empty(self.n);
+
+        let mut glob_best_disto = f64::INFINITY;
+
+
+        let mut cur_best_disto: f64 = f64::INFINITY;
+        let mut cur_best_tree: Graph = Graph::new_empty(self.n);
         let mut cur_best_tree_edges = vec![];
         
         let mut ant_edges: Vec<Vec<[usize; 2]>> = vec![vec![]; self.k];
         let mut dist_values: Vec<(f64, usize)> = vec![(0.0, 0); self.k];
 
         for _iter_index in 0..iter_count {
+
+            if _iter_index % 700 == 0 {
+                for [i, j] in self.edges.iter() {
+                    self.tau_matrix[*i + self.n * *j] = self.max_tau.val;
+                    self.tau_matrix[*j + self.n * *i] = self.max_tau.val;
+                }
+                cur_best_disto = f64::INFINITY;
+                cur_best_tree = Graph::new_empty(self.n);
+                cur_best_tree_edges = vec![];
+
+            }
+
             for ant in 0..self.k {
                 self.init_origin();
                 self.tree.adj_tab.fill(0);
@@ -402,6 +507,9 @@ impl ACO {
                     ant_edges[ant].push(edge);
                 }
                 let disto = self.tree.distorsion(&mut self.tree_dist_matrix, &self.dist_matrix);
+                let disto_approx= self.tree.distorsion_approx(&mut self.tree_dist_matrix, &self.edges, &self.edge_betweeness_centrality)*0.8;
+                
+                println!("{} {} {}", disto, disto_approx, disto / disto_approx);
                 // println!("disto: {}", disto);
                 dist_values[ant] = (disto, ant);
 
@@ -409,6 +517,9 @@ impl ACO {
                     cur_best_disto = disto;
                     cur_best_tree = self.tree.clone();
                     cur_best_tree_edges = cur_best_tree.get_edges();
+                }
+                if disto < glob_best_disto {
+                    glob_best_disto = disto;
                 }
             }
             for edge in self.edges.iter() {
@@ -450,12 +561,16 @@ impl ACO {
                 self.tau_matrix[edge[0] + self.n * edge[1]] = v;
                 self.tau_matrix[edge[1] + self.n * edge[0]] = v;
             }
-
+            self.trace.push(cur_best_disto);
             //println!("{:?}", self.tau_matrix);
         }
 
-        (cur_best_disto, cur_best_tree)
+        (glob_best_disto, cur_best_tree)
 
+    }
+    
+    pub fn possible_edges(&self) -> &[[usize; 2]] {
+        &self.possible_edges
     }
 
 

@@ -7,6 +7,7 @@ t1 = time.perf_counter()
 step = 3
 sua = 0.0
 sug = 0.0
+sugs = 0.0
 c = 0
 proc = []
 for i in range(0, 16*step, step):
@@ -15,10 +16,11 @@ for i in range(0, 16*step, step):
 
 for p in proc:
     (result, _) = p.communicate()
-    (t, ares, gres) = result.split(b";")
-    print(float(t), float(ares), float(gres))
+    (t, ares, gres, gsres) = result.split(b";")
+    print(float(t), float(ares), float(gres), float(gsres))
     sua += float(ares)
     sug += float(gres)
+    sugs += float(gsres)
     c+= 1
     p.wait()
 
