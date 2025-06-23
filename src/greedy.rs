@@ -94,12 +94,13 @@ impl ACO {
             let (new_vertex, parent) = if self.covered_vertices[edge[0]] {(edge[1], edge[0])} else {(edge[0], edge[1])};
 
             self.tree.ajout_sommet_arbre_recalculer_dist(&mut self.tree_dist_matrix, &mut ens_sommets, new_vertex, parent);
-            self.covered_vertices[new_vertex] = true;
             //println!("{:?}", ens_sommets);
 
 
             
             self.update_possible_edges(ei);
+            self.covered_vertices[new_vertex] = true;
+
             self.tree.add_edge_unckecked(edge[0], edge[1]);
 
         }

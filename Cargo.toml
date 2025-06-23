@@ -8,6 +8,8 @@ rand = "*"
 rand_xoshiro = "*"
 rustworkx-core = "*"
 petgraph = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
 
 [profile.release]
 debug = false

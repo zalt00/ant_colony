@@ -66,7 +66,7 @@ impl Graph {
 
         let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
         
-        let output = edge_betweenness_centrality(&g, false, 50);
+        let output = edge_betweenness_centrality(&g, false, 500000);
         let mut mat = vec![0.0; self.n*self.n];
 
         for i in g.edge_indices() {
@@ -317,6 +317,8 @@ impl RootedTree {
         for v in self.children.iter_mut() {
             v.clear();
         }
+        self.depths.fill(usize::MAX);
+        self.depths[root] = 0;
 
         self.root = root;
     }
@@ -372,10 +374,10 @@ impl RootedTree {
         t.distorsion_approx(&mut t.get_dist_matrix(), edges, ebc)
     }
 
-    pub fn distorsion(&self, g: &Graph) -> f64 {
+    pub fn distorsion(&self, dm: &Vec<u32>) -> f64 {
         let mut t = self.to_graph();
 
-        t.distorsion(&mut t.get_dist_matrix(), &g.get_dist_matrix())
+        t.distorsion(&mut t.get_dist_matrix(), &dm)
     }
 }
 
@@ -432,15 +434,15 @@ pub struct ACO {
 
 impl ACO {
     pub fn new(g: Graph, k: usize, alpha: Par<f64>, beta: Par<f64>, c: Par<f64>, evap: Par<f64>,
-    max_tau: Par<f64>, interval_tau: Par<f64>) -> ACO {
+    max_tau: Par<f64>, interval_tau: Par<f64>, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> ACO {
         let n = g.n;
-        let dist_matrix = g.get_dist_matrix();
+        //let dist_matrix = g.get_dist_matrix();
         let mut tree_dist_matrix = vec![u32::MAX; n*n];
         for i in 0..n {
             tree_dist_matrix[i + n*i] = 0;
         }
 
-        let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
+        //let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
 
         let mut edges = vec![];
 

@@ -37,7 +37,7 @@ impl SegmentTree {
     }
 
     const fn parent(&self, vi: usize) -> usize {
-        vi / 2
+        (vi-1) / 2
     }
 
     pub fn global_sum(&self) -> f64 {
@@ -55,8 +55,10 @@ impl SegmentTree {
     }
 
     fn _smallest_above_from(&self, vi: usize, val: f64) -> usize {
+        //println!("{} {}", vi, val);
         let children_count = self.children_count(vi);
         if children_count == 2 {
+            //println!("g{} d{}", self.0[vi * 2 + 1], self.0[vi * 2 + 2]);
 
             let val_left = self.0[vi * 2 + 1];
             if val_left < val {
@@ -78,6 +80,41 @@ impl SegmentTree {
         self._smallest_above_from(0, val) - self.intern_node_count()
     }
 }
+
+pub fn test_segment_tree() {
+    let mut sg = SegmentTree::new(5);  // ordre 2, 3, 4, 0, 1
+
+    sg.update(0, 0.2);
+    sg.update(1, 0.2);
+    sg.update(2, 0.2);
+    sg.update(3, 0.2);
+    sg.update(4, 0.2);
+
+    assert_eq!(sg.smallest_above(0.1), 2);
+    assert_eq!(sg.smallest_above(0.2), 2);
+    assert_eq!(sg.smallest_above(0.3), 3);
+    assert_eq!(sg.smallest_above(1.0), 1);
+    assert_eq!(sg.smallest_above(0.9), 1);
+    assert_eq!(sg.smallest_above(0.5), 4);
+
+
+
+    sg.update(0, 0.0);
+    sg.update(1, 0.0);
+    sg.update(2, 0.6);
+    sg.update(3, 0.2);
+    sg.update(4, 0.2);
+
+    assert_eq!(sg.smallest_above(0.1), 2);
+    assert_eq!(sg.smallest_above(0.2), 2);
+    assert_eq!(sg.smallest_above(0.3), 2);
+    assert_eq!(sg.smallest_above(1.0), 4);
+    assert_eq!(sg.smallest_above(0.9), 4);
+    assert_eq!(sg.smallest_above(0.5), 2);
+
+
+}
+
 
 pub struct Uf(Vec<isize>);
 
@@ -172,7 +209,7 @@ pub struct ACO2 {
     tau_matrix: Vec<f64>,
     tau_sg: SegmentTree,
 
-    adj_set: HashSet<[usize; 2]>,
+    adj_set: Vec<bool>,
     covered_vertices: Vec<bool>,
 
     tarjan_solver: TarjanSolver,
@@ -192,17 +229,20 @@ pub struct ACO2 {
 
     edge_betweeness_centrality: Vec<f64>,
 
-    base_tree: RootedTree
+    base_tree: Option<RootedTree>,
+
+    dist_matrix: Vec<u32>
 }
 
 impl ACO2 {
     pub fn new(g: Graph, k: usize, c: f64, evap: f64, min_tau: f64, max_tau: f64, tau_init: f64,
-            seed_u64: u64, base_tree: RootedTree) -> ACO2 {
+            seed_u64: u64, base_tree: Option<RootedTree>, edge_betweeness_centrality: Vec<f64>,
+        dist_matrix: Vec<u32>) -> ACO2 {
         let n = g.n;
         let tau_matrix = vec![tau_init; n*n];
         let edges = g.get_edges();
         let tau_sg = SegmentTree::new(edges.len());
-        let adj_set: HashSet<[usize; 2]> = HashSet::with_capacity(edges.len());
+        let adj_set = vec![false; edges.len()];
 
         let covered_vertices = vec![false; n];
 
@@ -216,14 +256,14 @@ impl ACO2 {
 
         let prng = Xoshiro256PlusPlus::seed_from_u64(seed_u64);
 
-        let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
+        //let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
 
         let tree = RootedTree::new(n, 0);
 
         ACO2 { n, g, tree, tau_matrix, tau_sg, adj_set,
             covered_vertices, tarjan_solver, edge_to_index, k,
             c, evap, min_tau, max_tau, tau_init, prng, edges,
-            edge_betweeness_centrality, base_tree }
+            edge_betweeness_centrality, base_tree, dist_matrix }
     }
 
 
@@ -231,19 +271,22 @@ impl ACO2 {
         let r = (self.prng.next_u64() % self.n as u64) as usize;
         self.tree.reset(r);
 
+        //self.tau_sg.0.fill(0.0);
+
         self.covered_vertices.fill(false);
         self.covered_vertices[r] = true;
 
-        self.adj_set.clear();
+        self.adj_set.fill(false);
         for &v in self.g.get_neighbors(r) {
-            self.adj_set.insert([r.min(v), r.max(v)]);
+            let ei = self.edge_to_index[r + self.n * v];
+            self.adj_set[ei] = true;
         }
 
         for &[u, v] in &self.edges {
             debug_assert!(u < v);
             let emati = u + self.n * v;
             let ei = self.edge_to_index[emati];
-            if self.adj_set.contains(&[u, v]) {
+            if self.adj_set[ei] {
                 self.tau_sg.update(ei, self.tau_matrix[emati]);
             } else {
                 self.tau_sg.update(ei, 0.0);
@@ -264,11 +307,12 @@ impl ACO2 {
             let (i, j) = (u.min(v), u.max(v));
             let ei =  self.edge_to_index[i + self.n * j];
 
-            if self.adj_set.remove(&[i, j]) {
+            if self.adj_set[ei] {
                 self.tau_sg.update(ei, 0.0);
+                self.adj_set[ei] = false;
             } else {
                 self.tau_sg.update(ei, self.tau_matrix[i + self.n * j]);
-                self.adj_set.insert([i, j]);
+                self.adj_set[ei] = true;
             }
         }
 
@@ -293,9 +337,19 @@ impl ACO2 {
     }
 
     pub fn launch(&mut self, iter_count: usize) -> f64 {
-        let mut cur_best_tree = self.base_tree.clone();
-        let mut cur_best_disto = cur_best_tree
-            .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+
+
+        let mut cur_best_tree; 
+        let mut cur_best_disto;
+        if let Some(t) = &self.base_tree {
+            cur_best_tree = t.clone();
+            cur_best_disto = cur_best_tree
+                .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+        } else {
+            cur_best_tree = RootedTree::new(self.n, 0);
+            cur_best_disto = f64::INFINITY;
+        }
+        //println!("{:?}", self.edge_to_index);
 
         for _iter_id in 1..=iter_count {
             for _ant_id in 1..=self.k {
@@ -339,7 +393,7 @@ impl ACO2 {
             self.update_tau(&cur_best_tree);
         }
 
-        cur_best_tree.distorsion(&self.g)
+        cur_best_tree.distorsion(&self.dist_matrix)
     }
 }
 
