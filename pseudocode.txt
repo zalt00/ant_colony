@@ -1,0 +1,96 @@
+Entrée:
+    - un graphe G = (V, E), |V| = n et |E| = m
+    - nombre de fourmis k
+    - nombre d'itérations iter_count
+    - paramètre d'intensité des phéromones c
+    - paramètre d'évaporation evap
+    - intervalle de phéromones [min_tau, max_tau]
+    - valeur de départ des phéromones tau_init
+
+Precalcul:
+    - structure EBC de correspondance entre une arête e et la edge betweeness centrality de e
+    # complexité: O(nm), ou O(sm) avec une approximation à s samples
+
+Fonctions intermédiaires:
+
+
+    Fonction DistoApprox:
+        - Entrée: un arbre T enraciné en r
+        - Sortie: la valeur de l'approximation de la distorsion de T
+
+        # applique l'algorithme de Tarjan pour les LCA, où 
+        # E corrspond à l'ensemble des requêtes
+        Soit LCA = Tarjan(T, r, E)  # complexité: O(m)
+        Soit depth associant chaque noeud de T à sa profondeur (ie distance à r)
+
+        Soit s = 0.0
+        Pour e = {u, v} dans E:
+            s += (depth[u] + depth[v] - 2*LCA[e]) * EBC[e]  
+            # complexité: O(alpha(m)), considéré comme O(1) à notre échelle
+        Renvoyer s
+
+
+Initialisation:
+    - tableau tau associant une arête et sa valeur de phéromone, initialement tau_init
+    - segment tree tau_sg de taille m
+    On note tau_sg[i..j] la somme des valeurs entre les indices i et j (inclus).
+    # complexité: O(log m) = O(log n)
+    - Soit cur_best_tree = None
+    - Soit cur_best_disto = inf
+
+Algorithme:
+
+    Répéter iter_count fois:
+        Répéter k fois:
+            Soit T = emptyset
+            Soit r un sommet aléatoire
+            Soit AE = ensemble des arêtes adjacentes à r
+
+            Pour chaque arete e dans E:
+                si e dans AE:
+                    MettreAJour(tau_sg, e, tau[e]) # complexité: O(log(n))
+                sinon:
+                    MettreAJour(tau_sg, e, 0.0) 
+
+            Répéter n-1 fois:
+                Soit s = tau_sg[..]  # somme prise du début jusqu'à la fin
+                Soit r pris uniformément dans [0, s]
+
+                Soit ei un indice d'un élément de tau_sg tel que:
+                    - tau_sg[0..ei-1] < s * r
+                    - tau_sg[0..ei]  >= s * r
+                # complexité: O(log n)
+                Soit e l'arête associée à l'indice ei
+                Soit u tel que e = {u, v} et u n'est pas dans T
+                
+                Soit H = Vois(u) - T
+                Pour chaque arête e dans AE & H:
+                    MettreAJour(tau_sg, e, 0.0)  # complexité: O(log n)
+                Pour chaque arête e dans H - AE:
+                    MettreAJour(tau_sg, e, tau[e])
+
+
+                AE = AE ^ H  # complexité: O(deg(u)) en moyenne
+
+            Soit disto = DistoApprox(T, r)
+            Si disto < cur_best_disto:
+                cur_best_disto = disto
+                cur_best_tree = Clone(T)
+
+        Pour chaque arête e dans E:
+            tau[e] = ( (1 - evap)*tau[e] ).clamp(min_tau, max_tau)
+
+        Pour chaque arête e de cur_best_tree:
+            tau[e] += c
+
+    Renvoyer cur_best_tree
+
+
+Complexité temporelle:
+
+    O(nm + k*iter_count*m*log n)
+
+
+
+
+

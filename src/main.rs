@@ -1,5 +1,8 @@
-use std::{fs::File, io::Read, io::Write};
+use std::{fs::File, io::{Read, Write}, thread::sleep, time::Duration};
 
+
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
 
 use crate::{graph::{repr, Graph, Par, ACO, CHEPA}, greedy::greedy_algo};
 
@@ -78,15 +81,19 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
     let mut sgs = 0.0;
     for (o, g) in grs[i..j].iter().enumerate() {
 
+
         let g2 = g.clone();
+        let (disto2, tgreedy) = greedy_algo(&g);
+
         let mut aco = ACO::new(g2, k, alpha, beta, c, evap, max_tau, interval_tau);
-        let disto = 0.0;
+        aco.base_dist = disto2;
+        aco.base_tree = tgreedy;
+        //let disto = 0.0;
+        //sleep(Duration::from_secs(1));
         let (disto, t) = aco.launch(iter_count);
 
-        let disto2 = greedy_algo(&g);
-
-        let mut aco_dummy = ACO::new_dummy(g.clone());
-        let disto3 = aco_dummy.greedy_stretch();
+        // let mut aco_dummy = ACO::new_dummy(g.clone());
+        // let disto3 = aco_dummy.greedy_stretch();
         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
         
@@ -96,10 +103,10 @@ pub fn evaluate_score(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
 
         s += disto;
         sg += disto2;
-        sgs += disto3;
+        // sgs += disto3;
         //sleep(Duration::from_secs(2));
     }
-    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64, sgs / (j-i) as f64);
+    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg, sg / (j-i) as f64);
     
 
 
@@ -143,30 +150,31 @@ pub fn evaluate_score2(grs: &Vec<Graph>, i: usize, j: usize, k: usize,
     for (o, g) in grs[i..j].iter().enumerate() {
 
         let g2 = g.clone();
+        let (disto2, tgreedy) = greedy_algo(&g);
+
         let mut aco = ACO::new(g2, k, alpha, beta, c, evap, max_tau, interval_tau);
-        let disto = 0.0;
+        aco.base_dist = disto2;
+        aco.base_tree = tgreedy;
+        //let disto = 0.0;
+        //sleep(Duration::from_secs(1));
         let (disto, t) = aco.launch(iter_count);
+        //sleep(Duration::from_secs(1));
 
-        let disto2 = greedy_algo(&g);
-
+        //let disto2 = 0.0;
         let mut output = File::create("trace.json").expect("welp");
         writeln!(output, "{:?}", aco.trace);
 
-        let mut aco_dummy = ACO::new_dummy(g.clone());
-        let disto3 = aco_dummy.greedy_stretch();
-        //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
 
-        
 
         //println!("{:?}", aco.tau_matrix);
         //println!("{:?}", t.get_edges());
 
         s += disto;
         sg += disto2;
-        sgs += disto3;
+        // sgs += disto3;
         //sleep(Duration::from_secs(2));
     }
-    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, sg / (j-i) as f64, sgs / (j-i) as f64);
+    println!("{};{};{};{}", unsafe{graph::CHEPA}, s / (j-i) as f64, s / sg, sg / (j-i) as f64);
     
 
 
@@ -223,8 +231,75 @@ fn main() {
         //println!("{:#?}", now.elapsed());
     } else {
         let grs = get_graphs();
+
+        let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);
+        let mut dist;
+        let mut dist2;
+        let mut dist_approx;
+        let mut dist_approx2;
+        let mut c = 0;
+        let mut inv = 0;
+
+        let mut ecs = 0.0;
+        let mut ecm: f64 = 0.0;
+
+        for (_i, g) in grs[0..40].iter().enumerate() {
+            for _l in 0..20 {
+                println!("computing {}...", _i * 20 + (_l+1));
+
+                {
+                let mut aco_dummy = ACO::new_dummy(g.clone());
+                // let disto3 = aco_dummy.greedy_stretch();
+                //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+                aco_dummy.random_tree(&mut prng);
+                dist = aco_dummy.tree.distorsion(&mut aco_dummy.tree_dist_matrix, &aco_dummy.dist_matrix);
+                dist_approx = aco_dummy.tree.distorsion_approx(&mut aco_dummy.tree_dist_matrix, &aco_dummy.g.get_edges(), &aco_dummy.edge_betweeness_centrality);
+                //println!("{} {}", dist, dist_approx);
+                }
+                {
+                let mut aco_dummy2 = ACO::new_dummy(g.clone());
+                // let disto3 = aco_dummy.greedy_stretch();
+                //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+                aco_dummy2.random_tree(&mut prng);
+                dist2 = aco_dummy2.tree.distorsion(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.dist_matrix);
+                dist_approx2 = aco_dummy2.tree.distorsion_approx(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.g.get_edges(), &aco_dummy2.edge_betweeness_centrality);
+                //println!("{} {}", dist2, dist_approx2);
+                }
+                c += 1;
+                let ec = if dist < dist2 && dist_approx > dist_approx2 {
+                    println!("{}", (_i+1) * 40 + (_l+1));
+                    inv += 1;
+
+                    let e1 = (dist2-dist)/dist2;
+                    let e2 = (dist_approx - dist_approx2)/dist_approx;
+
+                    e2 + e1
+
+                }
+                else if dist > dist2 && dist_approx < dist_approx2 {
+                    println!("{}", (_i+1) * 40 + (_l+1));
+                    inv += 1;
+                    let e1 = (dist-dist2)/dist;
+                    let e2 = (dist_approx2 - dist_approx)/dist_approx2;
+
+                    e2 + e1
+
+                } else {
+                    0.0
+                };
+                ecs += ec;
+                ecm = ecm.max(ec);
+                println!("{} {}    {} {}", dist, dist2, dist_approx, dist_approx2);
+
+            }
+
+        }
+
+        println!("{}%, c={}, ecs={}%, ecm={}%", inv as f64 / c as f64 * 100.0, c, ecs / inv as f64 * 100.0, ecm * 100.);
+
+
         //let now = Instant::now();
-        test_on_graphs2(&grs, 134, 135);
+        //test_on_graphs2(&grs, 134, 135);
 
     }
 

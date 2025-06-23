@@ -8,3 +8,6 @@ rand = "*"
 rand_xoshiro = "*"
 rustworkx-core = "*"
 petgraph = "*"
+
+[profile.release]
+debug = false

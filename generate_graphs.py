@@ -36,7 +36,7 @@ def random_graph(n):
             union(uf, i, j)
 
         ind += 1
-        if ind >= 10*n:
+        if ind >= 7*n:
             ind = 0
             c = True
             cb = find(uf, 0)
@@ -282,7 +282,7 @@ def resolve(g):
 
 if __name__ == '__main__':
     random.seed(1212)
-    n = 50
+    n = 100
     with open("test.graph", "w") as file:
         for j in range(400):
             print(j)
