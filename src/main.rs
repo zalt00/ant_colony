@@ -9,6 +9,7 @@ use crate::{graph::{repr, Graph, Par, ACO, CHEPA}, greedy::greedy_algo};
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;
+pub mod aco2;
 
 fn test_graph() {
     let mut s = String::new();

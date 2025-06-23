@@ -25,7 +25,7 @@ Fonctions intermédiaires:
 
         Soit s = 0.0
         Pour e = {u, v} dans E:
-            s += (depth[u] + depth[v] - 2*LCA[e]) * EBC[e]  
+            s += (depth[u] + depth[v] - 2*depth[LCA[e]]) * EBC[e]  
             # complexité: O(alpha(m)), considéré comme O(1) à notre échelle
         Renvoyer s
 
@@ -54,16 +54,16 @@ Algorithme:
 
             Répéter n-1 fois:
                 Soit s = tau_sg[..]  # somme prise du début jusqu'à la fin
-                Soit r pris uniformément dans [0, s]
+                Soit rho pris uniformément dans [0, s]
 
                 Soit ei un indice d'un élément de tau_sg tel que:
-                    - tau_sg[0..ei-1] < s * r
-                    - tau_sg[0..ei]  >= s * r
+                    - tau_sg[0..ei-1] < s * rho
+                    - tau_sg[0..ei]  >= s * rho
                 # complexité: O(log n)
                 Soit e l'arête associée à l'indice ei
                 Soit u tel que e = {u, v} et u n'est pas dans T
                 
-                Soit H = Vois(u) - T
+                Soit H = Vois(u)
                 Pour chaque arête e dans AE & H:
                     MettreAJour(tau_sg, e, 0.0)  # complexité: O(log n)
                 Pour chaque arête e dans H - AE:
@@ -71,6 +71,7 @@ Algorithme:
 
 
                 AE = AE ^ H  # complexité: O(deg(u)) en moyenne
+                T += e
 
             Soit disto = DistoApprox(T, r)
             Si disto < cur_best_disto:

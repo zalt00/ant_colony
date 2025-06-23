@@ -1,12 +1,12 @@
 use core::f64;
-use std::{fmt::Debug, time::Instant, u32};
+use std::{fmt::Debug, ops::DerefMut, time::Instant, u32};
 
 use rustworkx_core::petgraph;
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::my_rand::irwin_hall;
+use crate::{aco2::TarjanSolver, my_rand::irwin_hall};
 
 
 
@@ -281,6 +281,102 @@ impl Graph {
         s as f64 / c as f64
     }
 
+}
+
+#[derive(Clone)]
+pub struct RootedTree {
+    n: usize,
+    children: Vec<Vec<usize>>,
+    root: usize,
+    depths: Vec<usize>
+
+}
+
+impl RootedTree {
+    pub fn new(n: usize, root: usize) -> RootedTree {
+        let mut v = Vec::with_capacity(n);
+        for _ in 0..n {
+            v.push(vec![])
+        }
+
+        let mut depths = vec![usize::MAX; n];
+        depths[root] = 0;
+
+        RootedTree { n, children: v, root, depths }
+    }
+    pub fn get_children(&self, u: usize) -> &[usize] {&self.children[u]}
+    pub const fn get_root(&self) -> usize {self.root}
+
+    pub fn add_child(&mut self, parent: usize, child: usize) {
+        // note: parent doit avoir ete ajoute auparavant
+        self.children[parent].push(child);
+        self.depths[child] = self.depths[parent] + 1;
+    }
+
+    pub fn reset(&mut self, root: usize) {
+        for v in self.children.iter_mut() {
+            v.clear();
+        }
+
+        self.root = root;
+    }
+
+    pub fn to_graph(&self) -> Graph {
+        let mut g = Graph::new_empty(self.n);
+        for (u, children) in self.children.iter().enumerate() {
+            for v in children.iter() {
+                g.add_edge_unckecked(u, *v);
+            }
+        }
+        g
+    }
+
+    pub fn from_graph(g: &Graph, root: usize) -> RootedTree {
+        let mut tree = Self::new(g.n, root);
+
+        let mut visited = vec![false; g.n];
+
+        fn dfs(u: usize, g: &Graph, visited: &mut Vec<bool>, tree: &mut RootedTree) {
+            visited[u] = true;
+
+            for &v in g.get_neighbors(u) {
+                if !visited[v] {
+                    tree.add_child(u, v);
+                    dfs(v, g, visited, tree);
+                }
+            }
+        }
+        dfs(root, g, &mut visited, &mut tree);
+        tree
+    }
+
+    pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
+            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>) -> f64 {
+
+        let lca = tarjan_solver.launch(self, g);
+
+        let mut s = 0.0;
+
+        for &[u, v] in edges {
+            let i = u + self.n * v;
+            s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64 * ebc[i];
+        }
+
+
+        s / self.n as f64 / (self.n - 1) as f64
+    }
+
+    pub fn slow_disto_approx(&self, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
+        let mut t = self.to_graph();
+
+        t.distorsion_approx(&mut t.get_dist_matrix(), edges, ebc)
+    }
+
+    pub fn distorsion(&self, g: &Graph) -> f64 {
+        let mut t = self.to_graph();
+
+        t.distorsion(&mut t.get_dist_matrix(), &g.get_dist_matrix())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
