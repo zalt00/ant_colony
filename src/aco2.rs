@@ -231,7 +231,8 @@ pub struct ACO2 {
 
     base_tree: Option<RootedTree>,
 
-    dist_matrix: Vec<u32>
+    dist_matrix: Vec<u32>,
+    pub trace: Vec<f64>
 }
 
 impl ACO2 {
@@ -263,7 +264,7 @@ impl ACO2 {
         ACO2 { n, g, tree, tau_matrix, tau_sg, adj_set,
             covered_vertices, tarjan_solver, edge_to_index, k,
             c, evap, min_tau, max_tau, tau_init, prng, edges,
-            edge_betweeness_centrality, base_tree, dist_matrix }
+            edge_betweeness_centrality, base_tree, dist_matrix, trace: vec![] }
     }
 
 
@@ -387,7 +388,10 @@ impl ACO2 {
                 if disto_approx < cur_best_disto {
                     cur_best_disto = disto_approx;
                     cur_best_tree = self.tree.clone();
+
                 }
+                self.trace.push(cur_best_disto);
+
 
             }
             self.update_tau(&cur_best_tree);

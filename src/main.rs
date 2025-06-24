@@ -1,19 +1,21 @@
-use std::{fs::File, io::{Read, Write}, thread::sleep, time::{Duration, Instant}};
+use std::{fs::File, io::{Read, Write}, time::Instant};
+
 
 
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
-use serde::Serialize;
 
-use crate::{aco2::{test_segment_tree, ACO2}, graph::{repr, Graph, Par, RootedTree, ACO, CHEPA}, greedy::greedy_algo};
+use crate::{aco1::ACO, aco2::{test_segment_tree, ACO2}, graph::Graph, greedy::{greedy_algo, greedy_degree_bfs}, utils::Par};
 
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;
+pub mod aco1;
 pub mod aco2;
+pub mod utils;
 
 
-pub fn test_on_facebook() {
+pub fn test_on_facebook(c: f64, evap: f64) {
     let mut s = String::new();
 
     let mut file = File::open("data/facebook_converted.graph").expect("error");
@@ -52,10 +54,10 @@ pub fn test_on_facebook() {
     file2.read_to_string(&mut s2).expect("weeelp");
     let dm: Vec<u32> = serde_json::from_str(&s2).expect("wlpe2");
 
-    let c = 100.0;
-    let evap = 0.01;
+    // let c = 100.0;
+    // let evap = 0.01;
     let k = 10;
-    let ic = 10;
+    let ic = 100;
 
 
     let max_tau = 16.0;
@@ -64,28 +66,45 @@ pub fn test_on_facebook() {
 
     let g = &v[0];
 
-    let now = Instant::now();
-    println!("init aco1");
-    let mut aco = ACO::new(g.clone(), k,
-     Par::new_free(0.0), Par::new_free(0.0), Par::new_free(c),
-      Par::new_free(evap), Par::new_free(max_tau), Par::new_free(15.8), ebc.clone(),
-    dm.clone());
-    println!("launch aco1");
+    // println!("launch greedy1");
+    // let (disto, _) = greedy_algo(g, &dm);
+    // println!("{}", disto);
 
-    let (dist1, _) = aco.launch(ic);
 
-    println!("{:?}", now.elapsed());
+    // println!("launch greedy2");
+    // let mut prng = Xoshiro256PlusPlus::seed_from_u64(189);
+    // let (disto, _) = greedy_degree_bfs(g, &mut prng, &dm);
+    // println!("{}", disto);
 
-    let now = Instant::now();
+
+    // let now = Instant::now();
+    // println!("init aco1");
+    // let mut aco = ACO::new(g.clone(), k,
+    //  Par::new_free(0.0), Par::new_free(0.0), Par::new_free(c),
+    //   Par::new_free(evap), Par::new_free(max_tau), Par::new_free(15.8), ebc.clone(),
+    // dm.clone());
+    // println!("launch aco1");
+
+    let (dist1, _) = (0.0, ());//aco.launch(ic);
+
+    // println!("{:?}", now.elapsed());
+
+    // let now = Instant::now();
 
     println!("init aco2");
 
-    let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, 1212, None, ebc.clone(),
+    let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, 172, None, ebc.clone(),
     dm.clone());
         println!("launch aco2");
 
     let dist2 = aco2.launch(ic);
-    println!("{:?}", now.elapsed());
+    // println!("{:?}", now.elapsed());
+
+    let s = serde_json::to_string(&aco2.trace).expect("welp");
+    // println!("{:?}", g.get_edge_betweeness_centrality());
+    println!("saving...");
+    let mut output = File::create("trace.json").expect("welp2");
+    output.write_fmt(core::format_args!("{}",s)).expect("weee");
 
     println!("aco1={}, aco2={}", dist1, dist2);
 
@@ -114,7 +133,7 @@ pub fn get_graphs() -> Vec<Graph> {
             // println!("{:?}", g.get_edge_betweeness_centrality());
             println!("saving...");
             let mut output = File::create("data/facebook_ebc.json").expect("welp2");
-            write!(output, "{}", s);
+            output.write_fmt(core::format_args!("{}",s)).expect("weee");
 
             println!("done.");
 
@@ -288,28 +307,30 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     //println!("{:?}", args);
     if let Some(fg) = args.get(1) {
-        let i = 
-            if let Some(Some(i_)) = args.get(2).map(|s| {s.parse::<usize>().ok()}) {
+        let c = 
+            if let Some(Some(i_)) = args.get(2).map(|s| {s.parse::<f64>().ok()}) {
                 i_
             } else {
-                0
+                100.0
             };
 
-        let j = 
-            if let Some(Some(j_)) = args.get(3).map(|s| {s.parse::<usize>().ok()}) {
+        let evap = 
+            if let Some(Some(j_)) = args.get(3).map(|s| {s.parse::<f64>().ok()}) {
                 j_
             } else {
-                10
+                0.01
             };
         //println!("{} {}", i, j);
-        let grs = get_graphs();
+        println!("Process\nc={}, evap={}", c, evap);
+        test_on_facebook(c, evap);
+
         //let now = Instant::now();
         //test_on_graphs(&grs, i, j);
         //println!("{:#?}", now.elapsed());
     } else {
         // let grs = get_graphs();
 
-        test_on_facebook();
+        test_on_facebook(600.0, 0.1);
         //test_on_graphs2(&grs, 0, 1);
         return;
         // let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);

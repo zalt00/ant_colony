@@ -1,13 +1,14 @@
 use core::f64;
+use std::collections::BinaryHeap;
 
 use rand::RngCore;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::{self, graph::EdgeIndex};
 
-use crate::graph::{Graph, Par, ACO};
+use crate::{aco1::ACO, graph::{Graph, N}};
 
 
-pub fn greedy_algo(g: &Graph) -> (f64, Graph) {
+pub fn greedy_algo(g: &Graph, dm: &Vec<u32>) -> (f64, Graph) {
 
     let t_edges = g.get_edges_tpl();
 
@@ -34,10 +35,48 @@ pub fn greedy_algo(g: &Graph) -> (f64, Graph) {
         let mut t2 = Graph::from_petgraph(&t);
         assert_eq!(t2.n -1, t.edge_count());
 
-        return (t2.distorsion(&mut t2.get_dist_matrix(), &g.get_dist_matrix()), t2)
+        return (t2.distorsion(&mut vec![u32::MAX; g.n*g.n], dm), t2)
     }
 
 }
+
+
+
+pub fn greedy_degree_bfs(g: &Graph, prng: &mut Xoshiro256PlusPlus, dm: &Vec<u32>) -> (f64, Graph) {
+
+    let mut heap = BinaryHeap::new();
+
+    let n = g.n;
+
+    let mut tree = Graph::new_empty(n);
+
+    let u = (prng.next_u64() % n as u64) as usize;
+
+    let mut visited = vec![false; n];
+
+    heap.push((g.get_neighboor_count_unchecked(u), u, None::<usize>));
+
+    while !heap.is_empty() {
+        let (_, v, parent_opt) = heap.pop().unwrap();
+
+        if !visited[v] {
+            visited[v] = true;
+            if let Some(parent) = parent_opt {
+                tree.add_edge_unckecked(parent, v);
+            }
+
+            for &vois in g.get_neighbors(v) {
+                if !visited[vois] {
+                    heap.push((g.get_neighboor_count_unchecked(vois), vois, Some(v)));
+                }
+            }
+
+        }
+    }
+
+    (tree.distorsion(&mut vec![u32::MAX; n*n], dm), tree)
+}
+
 
 
 impl ACO {
