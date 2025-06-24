@@ -13,23 +13,35 @@ pub fn greedy_algo(g: &Graph, dm: &Vec<u32>) -> (f64, Graph) {
     let t_edges = g.get_edges_tpl();
 
     let mut t = petgraph::graph::UnGraph::<u32, ()>::from_edges(t_edges.iter());
+    let mut _i = 0;
+    let mut edges= vec![];
 
     'outer: loop {
-        let edges = rustworkx_core::centrality::edge_betweenness_centrality(&t, true, 500000);
+        if _i % 100 == 0 {println!("advance={}", _i);}
+
+        if _i % 100 == 0{
+            edges = rustworkx_core::centrality::edge_betweenness_centrality(&t, true, 500000);
+            println!("{}", edges.len());
+        }
+        _i += 1;
+
         let indices: Vec<EdgeIndex> = t.edge_indices().collect();
-        let mut emaped: Vec<(f64, EdgeIndex)> = edges.iter().enumerate().map(|(i, v)|
-            {(v.unwrap(), indices[i])}).collect();
+        let mut emaped: Vec<(f64, EdgeIndex, usize)> = edges.iter().enumerate().map(|(i, v)|
+            {(v.unwrap(), indices[i], i)}).collect();
         emaped.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
         for i in 0..emaped.len() {
-            let (_, ei) = emaped[i];
+            let (_, ei, i0) = emaped[i];
             let endpoints = t.edge_endpoints(ei).unwrap();
             t.remove_edge(ei);
             if petgraph::algo::connected_components(&t) > 1 {
                 t.add_edge(endpoints.0, endpoints.1, ());
             } else {
+                
+                edges.remove(i0);
                 continue 'outer;
             }
+            
         }
 
         let mut t2 = Graph::from_petgraph(&t);

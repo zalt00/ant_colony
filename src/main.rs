@@ -5,7 +5,7 @@ use std::{fs::File, io::{Read, Write}, time::Instant};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{aco1::ACO, aco2::{test_segment_tree, ACO2}, graph::Graph, greedy::{greedy_algo, greedy_degree_bfs}, utils::Par};
+use crate::{aco1::ACO, aco2::{test_segment_tree, ACO2}, graph::Graph, greedy::{greedy_algo, greedy_degree_bfs}, random_graph_generator::{Data, GraphData}, utils::Par};
 
 pub mod graph;
 pub mod my_rand;
@@ -13,9 +13,10 @@ pub mod greedy;
 pub mod aco1;
 pub mod aco2;
 pub mod utils;
+pub mod random_graph_generator;
 
 
-pub fn test_on_facebook(c: f64, evap: f64) {
+pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
     let mut s = String::new();
 
     let mut file = File::open("data/facebook_converted.graph").expect("error");
@@ -91,22 +92,114 @@ pub fn test_on_facebook(c: f64, evap: f64) {
 
     // let now = Instant::now();
 
-    println!("init aco2");
+    let mut dist2_sum = 0.0;
+    let mut counter = 0;
 
-    let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, 172, None, ebc.clone(),
-    dm.clone());
-        println!("launch aco2");
+    let mut vecs = vec![];
 
-    let dist2 = aco2.launch(ic);
+    for i in 0..5 {
+        println!("init aco2");
+
+        let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
+        dm.clone());
+            println!("launch aco2");
+
+        let dist2 = aco2.launch(ic);
+        dist2_sum += dist2;
+        counter += 1;
+
+        vecs.push(aco2.trace)
+    }
+
+
     // println!("{:?}", now.elapsed());
 
-    let s = serde_json::to_string(&aco2.trace).expect("welp");
+    let s = serde_json::to_string(&vecs).expect("welp");
     // println!("{:?}", g.get_edge_betweeness_centrality());
     println!("saving...");
     let mut output = File::create("trace.json").expect("welp2");
     output.write_fmt(core::format_args!("{}",s)).expect("weee");
 
-    println!("aco1={}, aco2={}", dist1, dist2);
+    println!("aco1={}, aco2={}", dist1, dist2_sum / counter as f64);
+
+}
+
+
+
+pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64) {
+    println!("n={}, m={}", gdt.n, gdt.m);
+    let g = gdt.to_graph();
+    assert!(g.is_connected());
+    let ebc = gdt.ebc.as_ref().unwrap();
+    let dm = gdt.dist_matrix.as_ref().unwrap();
+
+    // let c = 100.0;
+    // let evap = 0.01;
+    let k = 10;
+    let ic = 600;
+
+
+    let max_tau = 80.0;
+    let min_tau = 0.2;
+    let tau_init = 76.;
+
+    // println!("launch greedy1");
+    // let (disto, _) = greedy_algo(g, &dm);
+    // println!("{}", disto);
+
+
+    // println!("launch greedy2");
+    // let mut prng = Xoshiro256PlusPlus::seed_from_u64(189);
+    // let (disto, _) = greedy_degree_bfs(g, &mut prng, &dm);
+    // println!("{}", disto);
+
+
+    // let now = Instant::now();
+    // println!("init aco1");
+    // let mut aco = ACO::new(g.clone(), k,
+    //  Par::new_free(0.0), Par::new_free(0.0), Par::new_free(c),
+    //   Par::new_free(evap), Par::new_free(max_tau), Par::new_free(15.8), ebc.clone(),
+    // dm.clone());
+    // println!("launch aco1");
+
+    let (dist1, _) = (0.0, ());//aco.launch(ic);
+
+    // println!("{:?}", now.elapsed());
+
+    // let now = Instant::now();
+
+    let mut dist2_sum = 0.0;
+    let mut counter = 0;
+
+    let mut vecs = vec![];
+
+    for i in 0..2 {
+        println!("init aco2");
+
+        // let (disto, _) = greedy_algo(&g, &dm);
+        // println!("{}", disto);
+
+        let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
+        dm.clone());
+            println!("launch aco2");
+
+        let dist2 = aco2.launch(ic);
+        dist2_sum += dist2;
+        counter += 1;
+
+        vecs.push(aco2.trace)
+    }
+
+
+    // println!("{:?}", now.elapsed());
+
+    let s = serde_json::to_string(&vecs).expect("welp");
+    // println!("{:?}", g.get_edge_betweeness_centrality());
+    println!("saving...");
+    let mut output = File::create("trace.json").expect("welp2");
+    output.write_fmt(core::format_args!("{}",s)).expect("weee");
+
+    println!("aco1={}, aco2={}", dist1, dist2_sum / counter as f64);
 
 }
 
@@ -320,17 +413,35 @@ fn main() {
             } else {
                 0.01
             };
+
+        let seed = 
+            if let Some(Some(j_)) = args.get(4).map(|s| {s.parse::<u64>().ok()}) {
+                j_
+            } else {
+                1771
+            };
         //println!("{} {}", i, j);
         println!("Process\nc={}, evap={}", c, evap);
-        test_on_facebook(c, evap);
+        test_on_facebook(c, evap, seed);
 
         //let now = Instant::now();
         //test_on_graphs(&grs, i, j);
         //println!("{:#?}", now.elapsed());
     } else {
-        // let grs = get_graphs();
+        //let grs = get_graphs();
+        // let mut prng = Xoshiro256PlusPlus::seed_from_u64(898);
+        // let t = Graph::random_graph(30, 300, &mut prng);
+        // t.to_dot();
+        // return;
+        //Data::generate_samples(1, 1000, 20000, 123).save("data/samples1000-20000.data");
+        //return;
 
-        test_on_facebook(600.0, 0.1);
+        println!("loading samples...");
+        let data = Data::load("data/samples1000-20000.data");
+        println!("launching test.");
+        test_on_graph(&data.samples[0], 8000.0, 0.4, 181);
+
+        //test_on_facebook(800.0, 0.09, 171);
         //test_on_graphs2(&grs, 0, 1);
         return;
         // let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);

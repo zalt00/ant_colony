@@ -339,6 +339,9 @@ impl ACO2 {
 
     pub fn launch(&mut self, iter_count: usize) -> f64 {
 
+        let mut _cool = 0;
+        let mut _pas_cool = 0;
+
 
         let mut cur_best_tree; 
         let mut cur_best_disto;
@@ -384,16 +387,30 @@ impl ACO2 {
 
                 let disto_approx = self.tree.disto_approx(&self.g,
                     &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+                
+                // let _vraie_disto = self.tree.distorsion(&self.dist_matrix);
+                // let _vraie_disto_best = cur_best_tree.distorsion(&self.dist_matrix);
+
+                // if (_vraie_disto < _vraie_disto_best && disto_approx > cur_best_disto)
+                //     || (_vraie_disto > _vraie_disto_best && disto_approx < cur_best_disto) {
+                //         _pas_cool += 1;
+
+                //         println!("{} {} {}", _pas_cool, _cool, _pas_cool as f64 / (_pas_cool as f64 + _cool as f64) * 100.0);
+                //     }
+                // else {
+                //     _cool += 1;
+                // }
+
 
                 if disto_approx < cur_best_disto {
                     cur_best_disto = disto_approx;
                     cur_best_tree = self.tree.clone();
-
                 }
                 self.trace.push(cur_best_disto);
 
 
             }
+
             self.update_tau(&cur_best_tree);
         }
 

@@ -10,6 +10,7 @@ rustworkx-core = "*"
 petgraph = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+bincode = "*"
 
 [profile.release]
 debug = false

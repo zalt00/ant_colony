@@ -1,0 +1,209 @@
+Process
+c=800, evap=0.08
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.306077246781546
+
+Process
+c=800, evap=0.1
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3874938881956194
+
+Process
+c=800, evap=0.12
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.307271310209459
+
+Process
+c=800, evap=0.15
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.300985276065849
+
+Process
+c=1000, evap=0.08
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3281746152177227
+
+Process
+c=1000, evap=0.1
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3531278409737686
+
+Process
+c=1000, evap=0.12
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3758967873348125
+
+Process
+c=1000, evap=0.15
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.326992719815521
+
+Process
+c=600, evap=0.08
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.307080123076376
+
+Process
+c=600, evap=0.1
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.301904836269564
+
+Process
+c=600, evap=0.12
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.338118845673641
+
+Process
+c=600, evap=0.15
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3239588753224045
+
+Process
+c=1200, evap=0.08
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.2653760923003503
+
+Process
+c=1200, evap=0.1
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.309941269973558
+
+Process
+c=1200, evap=0.12
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3617692276525077
+
+Process
+c=1200, evap=0.15
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+init aco2
+launch aco2
+saving...
+aco1=0, aco2=2.3687161592562216
+
+251.45894340000814
