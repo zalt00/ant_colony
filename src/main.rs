@@ -104,7 +104,7 @@ pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
         dm.clone());
             println!("launch aco2");
 
-        let dist2 = aco2.launch(ic);
+        let dist2 = aco2.launch(ic, 1.0);
         dist2_sum += dist2;
         counter += 1;
 
@@ -126,7 +126,7 @@ pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
 
 
 
-pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64) {
+pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
     let g = gdt.to_graph();
     assert!(g.is_connected());
@@ -183,7 +183,7 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64) {
         dm.clone());
             println!("launch aco2");
 
-        let dist2 = aco2.launch(ic);
+        let dist2 = aco2.launch(ic, w);
         dist2_sum += dist2;
         counter += 1;
 
@@ -420,9 +420,18 @@ fn main() {
             } else {
                 1771
             };
+
+        let w = 
+            if let Some(Some(j_)) = args.get(5).map(|s| {s.parse::<f64>().ok()}) {
+                j_
+            } else {
+                0.5
+            };
         //println!("{} {}", i, j);
-        println!("Process\nc={}, evap={}", c, evap);
-        test_on_facebook(c, evap, seed);
+                let data = Data::load("data/samples1000-20000.data");
+
+        println!("Process\nc={}, evap={}, w={}", c, evap, w);
+        test_on_graph(&data.samples[0], c, evap, seed, w);
 
         //let now = Instant::now();
         //test_on_graphs(&grs, i, j);
@@ -439,7 +448,7 @@ fn main() {
         println!("loading samples...");
         let data = Data::load("data/samples1000-20000.data");
         println!("launching test.");
-        test_on_graph(&data.samples[0], 8000.0, 0.4, 181);
+        test_on_graph(&data.samples[0], 8000.0, 0.4_f64, 181, 0.5);
 
         //test_on_facebook(800.0, 0.09, 171);
         //test_on_graphs2(&grs, 0, 1);

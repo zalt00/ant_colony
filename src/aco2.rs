@@ -337,7 +337,35 @@ impl ACO2 {
         }
     }
 
-    pub fn launch(&mut self, iter_count: usize) -> f64 {
+    pub fn update_tau_hybrid(&mut self, cur_best_tree: &RootedTree, iter_best_tree: &RootedTree, w: f64) {
+        // evaporation
+        for &[u, v] in &self.edges {
+            let val = (self.tau_matrix[u + self.n * v] * (1.0 - self.evap))
+                .clamp(self.min_tau, self.max_tau);
+            self.tau_matrix[u + self.n * v] = val;
+            self.tau_matrix[v + self.n * u] = val;
+        }
+
+        // renforcement
+        for u in 0..self.n {
+            for &v in cur_best_tree.get_children(u) {
+                self.tau_matrix[u + self.n * v] += self.c * w;
+                self.tau_matrix[v + self.n * u] += self.c * w;
+            }
+        }
+
+        for u in 0..self.n {
+            for &v in iter_best_tree.get_children(u) {
+                self.tau_matrix[u + self.n * v] += self.c * (1.-w);
+                self.tau_matrix[v + self.n * u] += self.c * (1.-w);
+            }
+        }
+
+    }
+
+
+
+    pub fn launch(&mut self, iter_count: usize, w: f64) -> f64 {
 
         let mut _cool = 0;
         let mut _pas_cool = 0;
@@ -356,6 +384,9 @@ impl ACO2 {
         //println!("{:?}", self.edge_to_index);
 
         for _iter_id in 1..=iter_count {
+            let mut iter_best_disto = f64::INFINITY;
+            let mut iter_best_tree = RootedTree::new(self.n, 0);
+
             for _ant_id in 1..=self.k {
                 let _r = self.reset_state();
 
@@ -400,7 +431,10 @@ impl ACO2 {
                 // else {
                 //     _cool += 1;
                 // }
-
+                if disto_approx < iter_best_disto {
+                    iter_best_disto = disto_approx;
+                    iter_best_tree = self.tree.clone();
+                }
 
                 if disto_approx < cur_best_disto {
                     cur_best_disto = disto_approx;
@@ -410,8 +444,9 @@ impl ACO2 {
 
 
             }
+            // truc qui marchait un peu sinon: reappliquer l'evap entre les deux
+            self.update_tau_hybrid(&cur_best_tree, &iter_best_tree, w);
 
-            self.update_tau(&cur_best_tree);
         }
 
         cur_best_tree.distorsion(&self.dist_matrix)

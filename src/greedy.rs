@@ -19,7 +19,7 @@ pub fn greedy_algo(g: &Graph, dm: &Vec<u32>) -> (f64, Graph) {
     'outer: loop {
         if _i % 100 == 0 {println!("advance={}", _i);}
 
-        if _i % 100 == 0{
+        if _i % 100 == 0 {
             edges = rustworkx_core::centrality::edge_betweenness_centrality(&t, true, 500000);
             println!("{}", edges.len());
         }
