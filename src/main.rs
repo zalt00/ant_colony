@@ -1,11 +1,9 @@
-use std::{fs::File, io::{Read, Write}, time::Instant};
+use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 
 
-use rand::SeedableRng;
-use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{aco1::ACO, aco2::{test_segment_tree, ACO2}, graph::Graph, greedy::{greedy_algo, greedy_degree_bfs}, random_graph_generator::{Data, GraphData}, utils::Par};
+use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::Graph, random_graph_generator::{Data, GraphData}};
 
 pub mod graph;
 pub mod my_rand;
@@ -14,6 +12,8 @@ pub mod aco1;
 pub mod aco2;
 pub mod utils;
 pub mod random_graph_generator;
+pub mod benchmarks;
+pub mod config;
 
 
 pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
@@ -21,15 +21,15 @@ pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
 
     let mut file = File::open("data/facebook_converted.graph").expect("error");
     let mut v = vec![];
-    file.read_to_string(&mut s);
+    file.read_to_string(&mut s).expect("dfsdf");
 
 
 
-    for (i, gs) in s.split("::").enumerate() {
+    for (_i, gs) in s.split("::").enumerate() {
         let gstring = gs.trim().to_string();
         if gstring.len() > 0 {
 
-            let (disto, g) = Graph::from_string(gstring).expect("welp");
+            let (_disto, g) = Graph::from_string(gstring).expect("welp");
 
             // println!("serializing...");
             // let s = serde_json::to_string(&g.get_dist_matrix()).expect("welp");
@@ -210,16 +210,14 @@ pub fn get_graphs() -> Vec<Graph> {
     let mut s = String::new();
     let mut file = File::open("data/facebook_converted.graph").expect("error");
     let mut v = vec![];
-    file.read_to_string(&mut s);
+    file.read_to_string(&mut s).expect("j");
 
-    let coef_s = 0.0;
-    let coef_c = 0;
 
-    for (i, gs) in s.split("::").enumerate() {
+    for (_i, gs) in s.split("::").enumerate() {
         let gstring = gs.trim().to_string();
         if gstring.len() > 0 {
 
-            let (disto, g) = Graph::from_string(gstring).expect("welp");
+            let (_disto, g) = Graph::from_string(gstring).expect("welp");
 
             println!("serializing...");
             let s = serde_json::to_string(&g.get_edge_betweeness_centrality()).expect("welp");
@@ -392,137 +390,192 @@ pub fn get_graphs() -> Vec<Graph> {
 
 // }
 
-
-
 fn main() {
-    test_segment_tree();
-
     let args: Vec<String> = std::env::args().collect();
-    //println!("{:?}", args);
-    if let Some(fg) = args.get(1) {
-        let c = 
-            if let Some(Some(i_)) = args.get(2).map(|s| {s.parse::<f64>().ok()}) {
-                i_
-            } else {
-                100.0
-            };
 
-        let evap = 
-            if let Some(Some(j_)) = args.get(3).map(|s| {s.parse::<f64>().ok()}) {
-                j_
-            } else {
-                0.01
-            };
-
-        let seed = 
-            if let Some(Some(j_)) = args.get(4).map(|s| {s.parse::<u64>().ok()}) {
-                j_
-            } else {
-                1771
-            };
-
-        let w = 
-            if let Some(Some(j_)) = args.get(5).map(|s| {s.parse::<f64>().ok()}) {
-                j_
-            } else {
-                0.5
-            };
-        //println!("{} {}", i, j);
-                let data = Data::load("data/samples1000-20000.data");
-
-        println!("Process\nc={}, evap={}, w={}", c, evap, w);
-        test_on_graph(&data.samples[0], c, evap, seed, w);
-
-        //let now = Instant::now();
-        //test_on_graphs(&grs, i, j);
-        //println!("{:#?}", now.elapsed());
+    let mode = if let Some(_mode) = args.get(1) {
+        _mode
     } else {
-        //let grs = get_graphs();
-        // let mut prng = Xoshiro256PlusPlus::seed_from_u64(898);
-        // let t = Graph::random_graph(30, 300, &mut prng);
-        // t.to_dot();
-        // return;
-        //Data::generate_samples(1, 1000, 20000, 123).save("data/samples1000-20000.data");
-        //return;
+        "ac-c8000-evap0.4-w0.5-seed121"
+    };
 
-        println!("loading samples...");
-        let data = Data::load("data/samples1000-20000.data");
-        println!("launching test.");
-        test_on_graph(&data.samples[0], 8000.0, 0.4_f64, 181, 0.5);
+    if mode == "setup" {
+        println!("setup");
+        let mut profiles: HashMap<String, Profile> = HashMap::new();
+        profiles.insert("disto_approx".to_string(), Profile::DistoApprox);
+        for seed in [121, 143] {
+            profiles.insert(format!("ac-c8000-evap0.4-w0.5-seed{}", seed), Profile::AntColony(
+                AntColonyProfile {c: 8000.0, evap: 0.4, seed, w: 0.5, k: 10, ic: 600}
+            ));
+        }
+        
+        let cfg = Config {profiles};
 
-        //test_on_facebook(800.0, 0.09, 171);
-        //test_on_graphs2(&grs, 0, 1);
-        return;
-        // let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);
-        // let mut dist;
-        // let mut dist2;
-        // let mut dist_approx;
-        // let mut dist_approx2;
-        // let mut c = 0;
-        // let mut inv = 0;
+        serde_json::to_writer_pretty(File::create("config.json").expect("beuh"), &cfg).expect("bouuh");
+        
+    } else {
 
-        // let mut ecs = 0.0;
-        // let mut ecm: f64 = 0.0;
+        let cfg: Config = serde_json::from_reader(File::open("config.json").expect("wee")).expect("waa");
 
-        // for (_i, g) in grs[0..1].iter().enumerate() {
-        //     for _l in 0..20 {
-        //         println!("computing {}...", _i * 20 + (_l+1));
+        if let Some(profile) = cfg.profiles.get(mode) {
+            println!("launching profile <{}>:", mode);
 
-        //         {
-        //         let mut aco_dummy = ACO::new_dummy(g.clone());
-        //         // let disto3 = aco_dummy.greedy_stretch();
-        //         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
-        //         aco_dummy.random_tree(&mut prng);
-        //         dist = aco_dummy.tree.distorsion(&mut aco_dummy.tree_dist_matrix, &aco_dummy.dist_matrix);
-        //         dist_approx = aco_dummy.tree.distorsion_approx(&mut aco_dummy.tree_dist_matrix, &aco_dummy.g.get_edges(), &aco_dummy.edge_betweeness_centrality);
-        //         //println!("{} {}", dist, dist_approx);
-        //         }
-        //         {
-        //         let mut aco_dummy2 = ACO::new_dummy(g.clone());
-        //         // let disto3 = aco_dummy.greedy_stretch();
-        //         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
-        //         aco_dummy2.random_tree(&mut prng);
-        //         dist2 = aco_dummy2.tree.distorsion(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.dist_matrix);
-        //         dist_approx2 = aco_dummy2.tree.distorsion_approx(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.g.get_edges(), &aco_dummy2.edge_betweeness_centrality);
-        //         //println!("{} {}", dist2, dist_approx2);
-        //         }
-        //         c += 1;
-        //         let ec = if dist < dist2 && dist_approx > dist_approx2 {
-        //             //println!("{}", (_i+1) * 40 + (_l+1));
-        //             inv += 1;
+            match profile {
+                Profile::AntColony(dt) => {
+                    println!("loading samples...");
+                    let data = Data::load("data/samples1000-20000.data");
+                    println!("launching test.");
+                    test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
+                },
+                _ => panic!()
+            }
+        } else {
+            println!("invalid profile, avalaible profiles are:");
+            let mut keys: Vec<&String> = cfg.profiles.keys().collect();
+            keys.sort();
+            for k in keys {
+                println!(" - <{}>", k);
+            }
+        }
 
-        //             let e1 = (dist2-dist)/dist2;
-        //             let e2 = (dist_approx - dist_approx2)/dist_approx;
-
-        //             e2 + e1
-
-        //         }
-        //         else if dist > dist2 && dist_approx < dist_approx2 {
-        //             //println!("{}", (_i+1) * 40 + (_l+1));
-        //             inv += 1;
-        //             let e1 = (dist-dist2)/dist;
-        //             let e2 = (dist_approx2 - dist_approx)/dist_approx2;
-
-        //             e2 + e1
-
-        //         } else {
-        //             0.0
-        //         };
-        //         ecs += ec;
-        //         ecm = ecm.max(ec);
-        //         //println!("{} {}    {} {}", dist, dist2, dist_approx, dist_approx2);
-
-        //     }
-
-        // }
-
-        // println!("{}%, c={}, ecs={}%, ecm={}%", inv as f64 / c as f64 * 100.0, c, ecs / inv as f64 * 100.0, ecm * 100.);
-
-
-        // //let now = Instant::now();
-        //test_on_graphs2(&grs, 134, 135);
 
     }
 
 
+
 }
+
+
+
+// fn main() {
+//     test_segment_tree();
+
+//     let args: Vec<String> = std::env::args().collect();
+//     //println!("{:?}", args);
+//     if let Some(fg) = args.get(1) {
+//         let c = 
+//             if let Some(Some(i_)) = args.get(2).map(|s| {s.parse::<f64>().ok()}) {
+//                 i_
+//             } else {
+//                 100.0
+//             };
+
+//         let evap = 
+//             if let Some(Some(j_)) = args.get(3).map(|s| {s.parse::<f64>().ok()}) {
+//                 j_
+//             } else {
+//                 0.01
+//             };
+
+//         let seed = 
+//             if let Some(Some(j_)) = args.get(4).map(|s| {s.parse::<u64>().ok()}) {
+//                 j_
+//             } else {
+//                 1771
+//             };
+
+//         let w = 
+//             if let Some(Some(j_)) = args.get(5).map(|s| {s.parse::<f64>().ok()}) {
+//                 j_
+//             } else {
+//                 0.5
+//             };
+//         //println!("{} {}", i, j);
+//                 let data = Data::load("data/samples1000-20000.data");
+
+//         println!("Process\nc={}, evap={}, w={}", c, evap, w);
+//         test_on_graph(&data.samples[0], c, evap, seed, w);
+
+//         //let now = Instant::now();
+//         //test_on_graphs(&grs, i, j);
+//         //println!("{:#?}", now.elapsed());
+//     } else {
+//         //let grs = get_graphs();
+//         // let mut prng = Xoshiro256PlusPlus::seed_from_u64(898);
+//         // let t = Graph::random_graph(30, 300, &mut prng);
+//         // t.to_dot();
+//         // return;
+//         //Data::generate_samples(1, 1000, 20000, 123).save("data/samples1000-20000.data");
+//         //return;
+
+//         println!("loading samples...");
+//         let data = Data::load("data/samples1000-20000.data");
+//         println!("launching test.");
+//         test_on_graph(&data.samples[0], 8000.0, 0.4_f64, 181, 0.5);
+
+//         //test_on_facebook(800.0, 0.09, 171);
+//         //test_on_graphs2(&grs, 0, 1);
+//         return;
+//         // let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);
+//         // let mut dist;
+//         // let mut dist2;
+//         // let mut dist_approx;
+//         // let mut dist_approx2;
+//         // let mut c = 0;
+//         // let mut inv = 0;
+
+//         // let mut ecs = 0.0;
+//         // let mut ecm: f64 = 0.0;
+
+//         // for (_i, g) in grs[0..1].iter().enumerate() {
+//         //     for _l in 0..20 {
+//         //         println!("computing {}...", _i * 20 + (_l+1));
+
+//         //         {
+//         //         let mut aco_dummy = ACO::new_dummy(g.clone());
+//         //         // let disto3 = aco_dummy.greedy_stretch();
+//         //         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+//         //         aco_dummy.random_tree(&mut prng);
+//         //         dist = aco_dummy.tree.distorsion(&mut aco_dummy.tree_dist_matrix, &aco_dummy.dist_matrix);
+//         //         dist_approx = aco_dummy.tree.distorsion_approx(&mut aco_dummy.tree_dist_matrix, &aco_dummy.g.get_edges(), &aco_dummy.edge_betweeness_centrality);
+//         //         //println!("{} {}", dist, dist_approx);
+//         //         }
+//         //         {
+//         //         let mut aco_dummy2 = ACO::new_dummy(g.clone());
+//         //         // let disto3 = aco_dummy.greedy_stretch();
+//         //         //println!("{:?}  {} {}", aco.get_tau_tab_info(), disto, disto2);
+//         //         aco_dummy2.random_tree(&mut prng);
+//         //         dist2 = aco_dummy2.tree.distorsion(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.dist_matrix);
+//         //         dist_approx2 = aco_dummy2.tree.distorsion_approx(&mut aco_dummy2.tree_dist_matrix, &aco_dummy2.g.get_edges(), &aco_dummy2.edge_betweeness_centrality);
+//         //         //println!("{} {}", dist2, dist_approx2);
+//         //         }
+//         //         c += 1;
+//         //         let ec = if dist < dist2 && dist_approx > dist_approx2 {
+//         //             //println!("{}", (_i+1) * 40 + (_l+1));
+//         //             inv += 1;
+
+//         //             let e1 = (dist2-dist)/dist2;
+//         //             let e2 = (dist_approx - dist_approx2)/dist_approx;
+
+//         //             e2 + e1
+
+//         //         }
+//         //         else if dist > dist2 && dist_approx < dist_approx2 {
+//         //             //println!("{}", (_i+1) * 40 + (_l+1));
+//         //             inv += 1;
+//         //             let e1 = (dist-dist2)/dist;
+//         //             let e2 = (dist_approx2 - dist_approx)/dist_approx2;
+
+//         //             e2 + e1
+
+//         //         } else {
+//         //             0.0
+//         //         };
+//         //         ecs += ec;
+//         //         ecm = ecm.max(ec);
+//         //         //println!("{} {}    {} {}", dist, dist2, dist_approx, dist_approx2);
+
+//         //     }
+
+//         // }
+
+//         // println!("{}%, c={}, ecs={}%, ecm={}%", inv as f64 / c as f64 * 100.0, c, ecs / inv as f64 * 100.0, ecm * 100.);
+
+
+//         // //let now = Instant::now();
+//         //test_on_graphs2(&grs, 134, 135);
+
+//     }
+
+
+// }

@@ -1,11 +1,10 @@
-use std::{fs::File, io::Write};
+use std::fs::File;
 
 use bincode::{Decode, Encode};
-use rand::{RngCore, SeedableRng};
+use rand::{seq::SliceRandom, RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
-use serde::{Deserialize, Serialize};
 
-use crate::graph::Graph;
+use crate::{aco2::Uf, graph::{Graph, RootedTree}};
 
 
 impl Graph {
@@ -103,6 +102,36 @@ impl Graph {
         // 6) Génération et affichage du DOT (sans étiquette sur les arêtes)
         petgraph::algo::connected_components(&g) == 1
     }
+
+    pub fn random_tree2(&self, prng: &mut Xoshiro256PlusPlus) -> RootedTree {
+        let mut uf = Uf::init(self.n);
+
+        let mut edges = self.get_edges();
+        edges.shuffle(prng);
+
+        let mut t = Graph::new_empty(self.n);
+
+        let mut m = 0;
+        let mut i = 0;
+        while m < self.n - 1 {
+            let [u, v] = edges[i];
+
+            if uf.find(u) != uf.find(v) {
+                uf.union(u, v);
+
+                t.add_edge_unckecked(u, v);
+                m += 1;
+            }
+
+
+            i += 1;
+        }
+
+        let root = (prng.next_u64() % self.n as u64) as usize;
+
+        RootedTree::from_graph(&t, root)
+    }
+
 
 }
 

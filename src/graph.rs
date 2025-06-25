@@ -1,12 +1,9 @@
-use core::f64;
-use std::{fmt::Debug, ops::DerefMut, time::Instant, u32};
+use std::{fmt::Debug, u32};
 
 use rustworkx_core::petgraph;
-use rand::{RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::{aco2::TarjanSolver, my_rand::irwin_hall};
+use crate::aco2::TarjanSolver;
 
 
 

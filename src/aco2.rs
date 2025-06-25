@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -367,6 +366,8 @@ impl ACO2 {
 
     pub fn launch(&mut self, iter_count: usize, w: f64) -> f64 {
 
+        debug_assert!(self.tau_init <= self.max_tau);
+
         let mut _cool = 0;
         let mut _pas_cool = 0;
 
@@ -384,6 +385,8 @@ impl ACO2 {
         //println!("{:?}", self.edge_to_index);
 
         for _iter_id in 1..=iter_count {
+
+            
             let mut iter_best_disto = f64::INFINITY;
             let mut iter_best_tree = RootedTree::new(self.n, 0);
 

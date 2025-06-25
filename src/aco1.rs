@@ -12,8 +12,6 @@ pub struct ACO {
     pub(crate) tree_dist_matrix: Vec<u32>,
     pub tau_matrix: Vec<f64>,
     k: usize,
-    alpha: Par<f64>,
-    beta: Par<f64>,
     c: Par<f64>,
     evap: Par<f64>,
     max_tau: Par<f64>,
@@ -34,7 +32,7 @@ pub struct ACO {
 }
 
 impl ACO {
-    pub fn new(g: Graph, k: usize, alpha: Par<f64>, beta: Par<f64>, c: Par<f64>, evap: Par<f64>,
+    pub fn new(g: Graph, k: usize, _alpha: Par<f64>, _beta: Par<f64>, c: Par<f64>, evap: Par<f64>,
     max_tau: Par<f64>, interval_tau: Par<f64>, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> ACO {
         let n = g.n;
         //let dist_matrix = g.get_dist_matrix();
@@ -62,7 +60,7 @@ impl ACO {
         }
 
         ACO { n, g, dist_matrix, tree: Graph::new_empty(n), tree_dist_matrix,
-            tau_matrix, k, alpha, beta, c, evap,
+            tau_matrix, k, c, evap,
             max_tau, interval_tau,
             possible_edges: vec![], covered_vertices: vec![false; n],
             prng: Xoshiro256PlusPlus::seed_from_u64(1245),
@@ -94,8 +92,7 @@ impl ACO {
         }
 
         ACO { n, g, dist_matrix, tree: Graph::new_empty(n), tree_dist_matrix,
-            tau_matrix: vec![], k: 0, alpha: Par::new_free(0.0),
-            beta: Par::new_free(0.0), c: Par::new_free(0.0), evap: Par::new_free(0.0),
+            tau_matrix: vec![], k: 0, c: Par::new_free(0.0), evap: Par::new_free(0.0),
             max_tau: Par::new_free(0.0), interval_tau: Par::new_free(0.0),
             possible_edges: vec![], covered_vertices: vec![false; n],
             prng: Xoshiro256PlusPlus::seed_from_u64(1245),

@@ -5,7 +5,7 @@ use rand::RngCore;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph::{self, graph::EdgeIndex};
 
-use crate::{aco1::ACO, graph::{Graph, N}};
+use crate::{aco1::ACO, graph::Graph};
 
 
 pub fn greedy_algo(g: &Graph, dm: &Vec<u32>) -> (f64, Graph) {
