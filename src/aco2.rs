@@ -2,7 +2,7 @@
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{graph::{Graph, RootedTree}, my_rand::my_rand};
+use crate::{graph::{BaseRootedTree, Graph, RootedTree}, my_rand::my_rand};
 
 
 pub struct SegmentTree (Vec<f64>);
@@ -171,7 +171,7 @@ impl TarjanSolver {
         self.mark.fill(false);
     }
 
-    fn _launch_from(&mut self, u: usize, tree: &RootedTree, g: &Graph) {
+    fn _launch_from<T>(&mut self, u: usize, tree: &BaseRootedTree<T>, g: &Graph) {
         self.ancestors[u] = u;
         for v in tree.get_children(u) {
             self._launch_from(*v, tree, g);
@@ -189,10 +189,14 @@ impl TarjanSolver {
         }
     }
 
-    pub fn launch(&mut self, tree: &RootedTree, g: &Graph) -> &Vec<usize> {
+    pub fn launch<T>(&mut self, tree: &BaseRootedTree<T>, g: &Graph) -> &Vec<usize> {
         self.reset();
         self._launch_from(tree.get_root(), tree, g);
 
+        &self.results
+    }
+
+    pub fn get_results(&self) -> &Vec<usize> {
         &self.results
     }
 

@@ -3,7 +3,10 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 
 
-use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::Graph, random_graph_generator::{Data, GraphData}};
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
+
+use crate::{aco2::{TarjanSolver, ACO2}, config::{AntColonyProfile, Config, Profile}, graph::Graph, random_graph_generator::{Data, GraphData}};
 
 pub mod graph;
 pub mod my_rand;
@@ -401,6 +404,11 @@ fn main() {
 
     if mode == "setup" {
         println!("setup");
+        Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
+        Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
+
+
+
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         profiles.insert("disto_approx".to_string(), Profile::DistoApprox);
         for seed in [121, 143] {
@@ -427,7 +435,44 @@ fn main() {
                     println!("launching test.");
                     test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
                 },
-                _ => panic!()
+                Profile::DistoApprox => {
+
+                    println!("loading samples...");
+                    let data = Data::load("data/samples1000-20000-3.data");
+                    println!("launching test.");
+                    let mut _cool = 0;
+                    let mut _pas_cool = 0;
+                    let gdt = &data.samples[0];
+
+                    println!("n={}, m={}", gdt.n, gdt.m);
+                    let g = gdt.to_graph();
+                    assert!(g.is_connected());
+                    let ebc = gdt.ebc.as_ref().unwrap();
+
+                    let dm = gdt.dist_matrix.as_ref().unwrap();
+                    let mut prng = Xoshiro256PlusPlus::seed_from_u64(987);
+                    let edges = &g.get_edges();
+                    let tarjan_solver= &mut TarjanSolver::new(g.n);
+                    
+                    for _ in 0..1000 {
+                        let t1 = g.random_tree2(&mut prng);
+                        let t2 = g.random_tree2(&mut prng);
+                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, ebc);
+                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, ebc);
+
+                        let d1 = t1.distorsion(dm);
+                        let d2 = t2.distorsion(dm);
+
+                        if (da1 < da2 && d1 > d2) || (da1 > da2 && d1 < d2) {
+                            _pas_cool += 1;
+                        } else {
+                            _cool += 1;
+                        }
+
+                        println!("err={:.2}%   ({}/{})", 100.0 * _pas_cool as f64 / (_cool + _pas_cool) as f64, _pas_cool, _pas_cool + _cool);
+                    }
+
+                }
             }
         } else {
             println!("invalid profile, avalaible profiles are:");

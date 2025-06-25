@@ -1,5 +1,7 @@
 use std::{fmt::Debug, u32};
 
+use rand::RngCore;
+use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
@@ -281,13 +283,15 @@ impl Graph {
 }
 
 #[derive(Clone)]
-pub struct RootedTree {
+pub struct BaseRootedTree<T> {
     n: usize,
     children: Vec<Vec<usize>>,
     root: usize,
-    depths: Vec<usize>
-
+    depths: Vec<usize>,
+    parents: Vec<T>
 }
+
+pub type RootedTree = BaseRootedTree<()>;
 
 impl RootedTree {
     pub fn new(n: usize, root: usize) -> RootedTree {
@@ -299,8 +303,33 @@ impl RootedTree {
         let mut depths = vec![usize::MAX; n];
         depths[root] = 0;
 
-        RootedTree { n, children: v, root, depths }
+        BaseRootedTree { n, children: v, root, depths, parents: vec![] }
     }
+
+    pub fn from_graph(g: &Graph, root: usize) -> RootedTree {
+        let mut tree = Self::new(g.n, root);
+
+        let mut visited = vec![false; g.n];
+
+        fn dfs(u: usize, g: &Graph, visited: &mut Vec<bool>, tree: &mut RootedTree) {
+            visited[u] = true;
+
+            for &v in g.get_neighbors(u) {
+                if !visited[v] {
+                    tree.add_child(u, v);
+                    dfs(v, g, visited, tree);
+                }
+            }
+        }
+        dfs(root, g, &mut visited, &mut tree);
+        tree
+    }
+
+
+}
+
+impl<T> BaseRootedTree<T> {
+
     pub fn get_children(&self, u: usize) -> &[usize] {&self.children[u]}
     pub const fn get_root(&self) -> usize {self.root}
 
@@ -330,30 +359,13 @@ impl RootedTree {
         g
     }
 
-    pub fn from_graph(g: &Graph, root: usize) -> RootedTree {
-        let mut tree = Self::new(g.n, root);
 
-        let mut visited = vec![false; g.n];
-
-        fn dfs(u: usize, g: &Graph, visited: &mut Vec<bool>, tree: &mut RootedTree) {
-            visited[u] = true;
-
-            for &v in g.get_neighbors(u) {
-                if !visited[v] {
-                    tree.add_child(u, v);
-                    dfs(v, g, visited, tree);
-                }
-            }
-        }
-        dfs(root, g, &mut visited, &mut tree);
-        tree
-    }
 
     pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>) -> f64 {
 
         let lca = tarjan_solver.launch(self, g);
-
+        
         let mut s = 0.0;
 
         for &[u, v] in edges {
@@ -376,6 +388,18 @@ impl RootedTree {
 
         t.distorsion(&mut t.get_dist_matrix(), &dm)
     }
+
+    pub fn edge_swap(&mut self, prng: &mut Xoshiro256PlusPlus,
+        tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>) 
+    {
+        let ei = (prng.next_u64() % edges.len() as u64) as usize;
+        let [u, v] = edges[ei];
+
+        todo!()
+    }
+
+
+
 }
 
 
