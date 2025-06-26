@@ -4,9 +4,8 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 
 use rand::SeedableRng;
-use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{aco2::{TarjanSolver, ACO2}, config::{AntColonyProfile, Config, Profile}, graph::Graph, random_graph_generator::{Data, GraphData}};
+use crate::{aco2::{TarjanSolver, ACO2}, config::{AntColonyProfile, Config, Profile}, graph::Graph, my_rand::Prng, random_graph_generator::{Data, GraphData}};
 
 pub mod graph;
 pub mod my_rand;
@@ -15,8 +14,8 @@ pub mod aco1;
 pub mod aco2;
 pub mod utils;
 pub mod random_graph_generator;
-pub mod benchmarks;
 pub mod config;
+pub mod neighborhood;
 
 
 pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
@@ -76,7 +75,7 @@ pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
 
 
     // println!("launch greedy2");
-    // let mut prng = Xoshiro256PlusPlus::seed_from_u64(189);
+    // let mut prng = Prng::seed_from_u64(189);
     // let (disto, _) = greedy_degree_bfs(g, &mut prng, &dm);
     // println!("{}", disto);
 
@@ -152,7 +151,7 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
 
 
     // println!("launch greedy2");
-    // let mut prng = Xoshiro256PlusPlus::seed_from_u64(189);
+    // let mut prng = Prng::seed_from_u64(189);
     // let (disto, _) = greedy_degree_bfs(g, &mut prng, &dm);
     // println!("{}", disto);
 
@@ -404,8 +403,8 @@ fn main() {
 
     if mode == "setup" {
         println!("setup");
-        Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
-        Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
+        // Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
+        // Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
 
 
 
@@ -417,6 +416,8 @@ fn main() {
             ));
         }
         
+        profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
+
         let cfg = Config {profiles};
 
         serde_json::to_writer_pretty(File::create("config.json").expect("beuh"), &cfg).expect("bouuh");
@@ -426,7 +427,7 @@ fn main() {
         let cfg: Config = serde_json::from_reader(File::open("config.json").expect("wee")).expect("waa");
 
         if let Some(profile) = cfg.profiles.get(mode) {
-            println!("launching profile <{}>:", mode);
+            println!("% launching profile <{}>:", mode);
 
             match profile {
                 Profile::AntColony(dt) => {
@@ -450,7 +451,7 @@ fn main() {
                     let ebc = gdt.ebc.as_ref().unwrap();
 
                     let dm = gdt.dist_matrix.as_ref().unwrap();
-                    let mut prng = Xoshiro256PlusPlus::seed_from_u64(987);
+                    let mut prng = Prng::seed_from_u64(987);
                     let edges = &g.get_edges();
                     let tarjan_solver= &mut TarjanSolver::new(g.n);
                     
@@ -472,6 +473,30 @@ fn main() {
                         println!("err={:.2}%   ({}/{})", 100.0 * _pas_cool as f64 / (_cool + _pas_cool) as f64, _pas_cool, _pas_cool + _cool);
                     }
 
+                },
+
+                Profile::NeighborhoodTest => {
+                    let mut prng = Prng::seed_from_u64(1223);
+                    let g = Graph::random_graph(15, 80, &mut prng);
+
+                    g.to_dot("graph.dot");
+
+                    let mut t = g.random_tree2(&mut prng);
+                    t.update_parents();
+                    t.to_graph().to_dot("tree.dot");
+                    let mut ts = TarjanSolver::new(g.n);
+                    ts.launch(&t, &g);
+                    //t.edge_swap_random(&mut prng, &ts, &g.get_edges());
+
+                    //t.to_graph().to_dot("tree2.dot");
+
+                    let mut tbuf = Graph::new_empty(g.n);
+                    // while !t.subtree_swap_with_random_edge(&mut prng, &ts, &g.get_edges(), &g, &mut tbuf) {}
+
+                    t.subtree_swap_with_random_critical_path(&mut prng, &g, &mut tbuf);
+                    tbuf.to_dot("tree2.dot");
+
+                    std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
                 }
             }
         } else {
@@ -536,7 +561,7 @@ fn main() {
 //         //println!("{:#?}", now.elapsed());
 //     } else {
 //         //let grs = get_graphs();
-//         // let mut prng = Xoshiro256PlusPlus::seed_from_u64(898);
+//         // let mut prng = Prng::seed_from_u64(898);
 //         // let t = Graph::random_graph(30, 300, &mut prng);
 //         // t.to_dot();
 //         // return;
@@ -551,7 +576,7 @@ fn main() {
 //         //test_on_facebook(800.0, 0.09, 171);
 //         //test_on_graphs2(&grs, 0, 1);
 //         return;
-//         // let mut prng: Xoshiro256PlusPlus = Xoshiro256PlusPlus::seed_from_u64(890);
+//         // let mut prng: Prng = Prng::seed_from_u64(890);
 //         // let mut dist;
 //         // let mut dist2;
 //         // let mut dist_approx;

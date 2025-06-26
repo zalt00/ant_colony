@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::Write;
 
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
@@ -57,7 +58,7 @@ impl Graph {
 
     }
 
-    pub fn to_dot(&self) {
+    pub fn to_dot(&self, fname: &str) {
         // 2) Détection du nombre de nœuds nécessaire (max index + 1)
         let edges = self.get_edges();
         let node_count = self.n;
@@ -78,7 +79,8 @@ impl Graph {
 
         // 6) Génération et affichage du DOT (sans étiquette sur les arêtes)
         let dot = petgraph::dot::Dot::with_config(&g, &[petgraph::dot::Config::EdgeNoLabel]);
-        println!("{dot:?}");
+        let mut file = File::create(fname).expect("wee");
+        writeln!(file, "{dot:?}").expect("beuh");
     }
 
     pub fn is_connected(&self) -> bool {

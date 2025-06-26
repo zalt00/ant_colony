@@ -1,11 +1,12 @@
+use std::usize;
 use std::{fmt::Debug, u32};
 
 use rand::RngCore;
-use rand_xoshiro::Xoshiro256PlusPlus;
 use rustworkx_core::petgraph;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
 use crate::aco2::TarjanSolver;
+use crate::utils::Par;
 
 
 
@@ -283,15 +284,13 @@ impl Graph {
 }
 
 #[derive(Clone)]
-pub struct BaseRootedTree<T> {
-    n: usize,
-    children: Vec<Vec<usize>>,
-    root: usize,
+pub struct RootedTree {
+    pub(crate) n: usize,
+    pub(crate) children: Vec<Vec<usize>>,
+    pub(crate) root: usize,
     depths: Vec<usize>,
-    parents: Vec<T>
+    pub(crate) parents: Vec<usize>
 }
-
-pub type RootedTree = BaseRootedTree<()>;
 
 impl RootedTree {
     pub fn new(n: usize, root: usize) -> RootedTree {
@@ -303,7 +302,51 @@ impl RootedTree {
         let mut depths = vec![usize::MAX; n];
         depths[root] = 0;
 
-        BaseRootedTree { n, children: v, root, depths, parents: vec![] }
+        RootedTree { n, children: v, root, depths, parents: vec![] }
+    }
+
+
+    pub fn add_child(&mut self, parent: usize, child: usize) {
+        // note: parent doit avoir ete ajoute auparavant
+        self.children[parent].push(child);
+        self.depths[child] = self.depths[parent] + 1;
+    }
+
+
+}
+
+impl RootedTree {
+
+    pub fn get_children(&self, u: usize) -> &[usize] {&self.children[u]}
+    pub const fn get_root(&self) -> usize {self.root}
+
+    pub fn reset(&mut self, root: usize) {
+        for v in self.children.iter_mut() {
+            v.clear();
+        }
+        self.depths.fill(usize::MAX);
+        self.depths[root] = 0;
+
+        self.root = root;
+    }
+
+    pub fn fill_graph(&self, tree_buf: &mut Graph) {
+        tree_buf.clear();
+        for (u, children) in self.children.iter().enumerate() {
+            for v in children.iter() {
+                tree_buf.add_edge_unckecked(u, *v);
+            }
+        }
+    }
+
+    pub fn to_graph(&self) -> Graph {
+        let mut g = Graph::new_empty(self.n);
+        for (u, children) in self.children.iter().enumerate() {
+            for v in children.iter() {
+                g.add_edge_unckecked(u, *v);
+            }
+        }
+        g
     }
 
     pub fn from_graph(g: &Graph, root: usize) -> RootedTree {
@@ -324,42 +367,6 @@ impl RootedTree {
         dfs(root, g, &mut visited, &mut tree);
         tree
     }
-
-
-}
-
-impl<T> BaseRootedTree<T> {
-
-    pub fn get_children(&self, u: usize) -> &[usize] {&self.children[u]}
-    pub const fn get_root(&self) -> usize {self.root}
-
-    pub fn add_child(&mut self, parent: usize, child: usize) {
-        // note: parent doit avoir ete ajoute auparavant
-        self.children[parent].push(child);
-        self.depths[child] = self.depths[parent] + 1;
-    }
-
-    pub fn reset(&mut self, root: usize) {
-        for v in self.children.iter_mut() {
-            v.clear();
-        }
-        self.depths.fill(usize::MAX);
-        self.depths[root] = 0;
-
-        self.root = root;
-    }
-
-    pub fn to_graph(&self) -> Graph {
-        let mut g = Graph::new_empty(self.n);
-        for (u, children) in self.children.iter().enumerate() {
-            for v in children.iter() {
-                g.add_edge_unckecked(u, *v);
-            }
-        }
-        g
-    }
-
-
 
     pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>) -> f64 {
@@ -389,13 +396,22 @@ impl<T> BaseRootedTree<T> {
         t.distorsion(&mut t.get_dist_matrix(), &dm)
     }
 
-    pub fn edge_swap(&mut self, prng: &mut Xoshiro256PlusPlus,
-        tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>) 
-    {
-        let ei = (prng.next_u64() % edges.len() as u64) as usize;
-        let [u, v] = edges[ei];
+}
 
-        todo!()
+
+impl RootedTree {
+
+
+    pub fn update_parents(&mut self) {
+        if self.parents.is_empty() {
+            self.parents = vec![usize::MAX; self.n];
+        }
+
+        for (u, ch) in self.children.iter().enumerate() {
+            for v in ch {
+                self.parents[*v] = u;
+            }
+        }
     }
 
 

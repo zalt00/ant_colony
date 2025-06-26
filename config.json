@@ -1,5 +1,15 @@
 {
   "profiles": {
+    "ac-c8000-evap0.4-w0.5-seed121": {
+      "AntColony": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 121,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
     "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed143": {
       "AntColony": {
@@ -11,15 +21,6 @@
         "ic": 600
       }
     },
-    "ac-c8000-evap0.4-w0.5-seed121": {
-      "AntColony": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 121,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    }
+    "ntest1": "NeighborhoodTest"
   }
 }

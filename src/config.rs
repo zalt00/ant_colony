@@ -17,7 +17,8 @@ pub struct AntColonyProfile {
 #[derive(Serialize, Deserialize)]
 pub enum Profile {
     DistoApprox,
-    AntColony(AntColonyProfile)
+    AntColony(AntColonyProfile),
+    NeighborhoodTest
 }
 
 #[derive(Serialize, Deserialize)]

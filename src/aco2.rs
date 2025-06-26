@@ -1,8 +1,8 @@
 
 use rand::{RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
+use crate::my_rand::Prng;
 
-use crate::{graph::{BaseRootedTree, Graph, RootedTree}, my_rand::my_rand};
+use crate::{graph::{Graph, RootedTree}, my_rand::my_rand};
 
 
 pub struct SegmentTree (Vec<f64>);
@@ -171,7 +171,7 @@ impl TarjanSolver {
         self.mark.fill(false);
     }
 
-    fn _launch_from<T>(&mut self, u: usize, tree: &BaseRootedTree<T>, g: &Graph) {
+    fn _launch_from(&mut self, u: usize, tree: &RootedTree, g: &Graph) {
         self.ancestors[u] = u;
         for v in tree.get_children(u) {
             self._launch_from(*v, tree, g);
@@ -189,7 +189,7 @@ impl TarjanSolver {
         }
     }
 
-    pub fn launch<T>(&mut self, tree: &BaseRootedTree<T>, g: &Graph) -> &Vec<usize> {
+    pub fn launch(&mut self, tree: &RootedTree, g: &Graph) -> &Vec<usize> {
         self.reset();
         self._launch_from(tree.get_root(), tree, g);
 
@@ -226,7 +226,7 @@ pub struct ACO2 {
     max_tau: f64,
     tau_init: f64,
 
-    prng: Xoshiro256PlusPlus,
+    prng: Prng,
 
     edges: Vec<[usize; 2]>,
 
@@ -258,7 +258,7 @@ impl ACO2 {
             edge_to_index[v + n * u] = ei;
         }
 
-        let prng = Xoshiro256PlusPlus::seed_from_u64(seed_u64);
+        let prng = Prng::seed_from_u64(seed_u64);
 
         //let edge_betweeness_centrality = g.get_edge_betweeness_centrality();
 
