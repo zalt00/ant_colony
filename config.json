@@ -1,5 +1,6 @@
 {
   "profiles": {
+    "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
         "c": 8000.0,
@@ -10,12 +11,21 @@
         "ic": 600
       }
     },
-    "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed143": {
       "AntColony": {
         "c": 8000.0,
         "evap": 0.4,
         "seed": 143,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
+    "vns-vs-aco": {
+      "VNSvsACO": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 123,
         "w": 0.5,
         "k": 10,
         "ic": 600

@@ -286,7 +286,7 @@ pub struct RootedTree {
     pub(crate) n: usize,
     pub(crate) children: Vec<Vec<usize>>,
     pub(crate) root: usize,
-    depths: Vec<usize>,
+    pub(crate) depths: Vec<usize>,
     pub(crate) parents: Vec<usize>
 }
 
@@ -308,6 +308,13 @@ impl RootedTree {
         // note: parent doit avoir ete ajoute auparavant
         self.children[parent].push(child);
         self.depths[child] = self.depths[parent] + 1;
+    }
+
+    pub fn recompute_depths_rec(&mut self, u: usize, d: usize) {
+        self.depths[u] = d;
+        for v in self.children[u].clone() {
+            self.recompute_depths_rec(v, d + 1);
+        }
     }
 
 
@@ -410,6 +417,8 @@ impl RootedTree {
                 self.parents[*v] = u;
             }
         }
+
+        self.parents[self.root] = usize::MAX;
     }
 
 

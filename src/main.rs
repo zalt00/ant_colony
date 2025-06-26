@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 use rand::SeedableRng;
 
-use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::Graph, my_rand::Prng, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
+use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::Graph, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
 
 pub mod graph;
 pub mod my_rand;
@@ -130,7 +130,7 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
 
     let mut vecs = vec![];
 
-    for i in 0..2 {
+    for i in 0..1 {
         println!("init aco2");
 
         // let (disto, _) = greedy_algo(&g, &dm);
@@ -223,6 +223,10 @@ fn main() {
         
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
 
+        profiles.insert(format!("vns-vs-aco"), Profile::VNSvsACO(
+            AntColonyProfile {c: 8000.0, evap: 0.4, seed: 123, w: 0.5, k: 10, ic: 600}
+        ));
+
         let cfg = Config {profiles};
 
         serde_json::to_writer_pretty(File::create("config.json").expect("beuh"), &cfg).expect("bouuh");
@@ -281,7 +285,7 @@ fn main() {
                 },
 
                 Profile::NeighborhoodTest => {
-                    let mut prng = Prng::seed_from_u64(1223);
+                    let mut prng = Prng::seed_from_u64(123);
                     let g = Graph::random_graph(15, 80, &mut prng);
 
                     g.to_dot("graph.dot");
@@ -289,20 +293,36 @@ fn main() {
                     let mut t = g.random_tree2(&mut prng);
                     t.update_parents();
                     t.to_graph().to_dot("tree.dot");
-                    let mut ts = TarjanSolver::new(g.n);
-                    ts.launch(&t, &g);
-                    //t.edge_swap_random(&mut prng, &ts, &g.get_edges());
 
-                    //t.to_graph().to_dot("tree2.dot");
+                    // while !t.edge_swap_random(&mut prng, &g.get_edges()) {};
+
+                    // t.to_graph().to_dot("tree2.dot");
 
                     let mut tbuf = Graph::new_empty(g.n);
-                    // while !t.subtree_swap_with_random_edge(&mut prng, &ts, &g.get_edges(), &g, &mut tbuf) {}
+                    // while !t.subtree_swap_with_random_edge(&mut prng, &g.get_edges(), &g, &mut tbuf) {}
 
                     t.subtree_swap_with_random_critical_path(&mut prng, &g, &mut tbuf);
                     tbuf.to_dot("tree2.dot");
 
                     std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
-                }
+                },
+
+                Profile::VNSvsACO(_dt) => {
+                    println!("loading samples...");
+                    let data = Data::load("data/samples1000-20000.data");
+                    println!("launching test: ACO");
+                    //test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
+
+                    println!("launching test: VNS");
+                    let gdt = &data.samples[0];
+
+                    let mut vns = VNS::new(gdt.to_graph(), 123, gdt.ebc.clone().unwrap(), gdt.dist_matrix.clone().unwrap());
+                    let d = vns.gvns_random_start_nonapprox(30);
+
+                    println!("vns result: {}", d);
+
+                },
+                
             }
         } else {
             println!("invalid profile, avalaible profiles are:");

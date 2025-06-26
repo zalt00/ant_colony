@@ -1,37 +1,69 @@
-use rand::{seq::SliceRandom, RngCore};
+use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
 use crate::{utils::{TarjanSolver, Uf}, graph::{Graph, RootedTree, N}, my_rand::Prng};
 
 
 impl RootedTree {
-    pub fn edge_removable_for_swap(&self, ei: usize,
-        tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
+    pub fn edge_removable_for_swap(&mut self, ei: usize, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
     {
-        // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
 
+
+        // aaaaarg j'avais oublie a ce truc -> dans l'idee pas forcement utile de tout calculer
+        self.recompute_depths_rec(self.root, 0);
+
+        // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
         let [u, v] = edges[ei];
 
         if self.parents[u] != v && self.parents[v] != u {
-            let lca = tarjan_solver.get_results()[u + self.n * v];
 
             let mut resu = vec![];
             let mut resv = vec![];
-            let mut w = u;
-            println!("root={}, lca={}, u={}, v={}", self.root, lca, u, v);
-            while w != lca {
-                resu.push(w);
-                w = self.parents[w];
+            let mut wu = u;
+            let mut wv = v;
+
+            while self.depths[wu] > self.depths[wv] {
+                resu.push(wu);
+                wu = self.parents[wu];
             }
 
-            w = v;
-            while w != lca {
-                println!("w={}", w);
-                resv.push(w);
-                w = self.parents[w]
+            while self.depths[wv] > self.depths[wu] {
+                resv.push(wv);
+                wv = self.parents[wv];
             }
 
-            resu.push(lca);
-            resv.push(lca);
+            while wu != wv {
+                // println!("w {} {} {}", wu, wv, self.root);
+                // println!("{} {}", self.depths[wu], self.depths[wv]);
+                resu.push(wu);
+                resv.push(wv);
+
+                wu = self.parents[wu];
+                if wv == usize::MAX {
+                    println!("{:?} {:?} {}", resu, resv, self.root);
+                }
+                wv = self.parents[wv];
+            }
+
+            //println!("root={}, lca={}, u={}, v={}", self.root, lca, u, v);
+
+            // while w != lca {
+            //     resu.push(w);
+            //     w = self.parents[w];
+            // }
+
+            // w = v;
+            // while w != lca {
+            //     //println!("w={}", w);
+            //     resv.push(w);
+            //     if w == usize::MAX {
+            //         println!("{} {} {} {:?} {:?}", u, v, lca, resu, resv);
+            //     }
+
+            //     w = self.parents[w]
+            // }
+
+            resu.push(wu);
+            resv.push(wv);
 
             [resu, resv]
         } else {
@@ -42,7 +74,7 @@ impl RootedTree {
     pub fn do_the_edge_swap(&mut self, dt_rm: &Vec<usize>, dt_oth: &Vec<usize>, rmi: usize) {
         {
             let mut wi = rmi;
-            println!("rmi={}", rmi);
+            // println!("rmi={}", rmi);
 
             while wi > 0 {
 
@@ -72,10 +104,17 @@ impl RootedTree {
 
     }
 
-    pub fn edge_swap_random(&mut self, prng: &mut Prng, tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>) -> bool {
+    pub fn edge_swap_random(&mut self, prng: &mut Prng, edges: &Vec<[usize; 2]>) -> bool {
+        // /!\ appeler update_parent avant
+
+        // pour tester, essayer d'enlever plus tard
+        //self.update_parents();
+
         let ei = (prng.next_u64() % edges.len() as u64) as usize;
-        println!("{:?}", edges[ei]);
-        let dt = self.edge_removable_for_swap(ei, tarjan_solver, edges);
+        // println!("{:?}", edges[ei]);
+        let dt = self.edge_removable_for_swap(ei, edges);
+        // println!("{:?}", dt);
+
         let [resu, resv] = &dt;
         if resu.len() == 0 {return false;}
         let k = resu.len() + resv.len() - 2;
@@ -83,7 +122,7 @@ impl RootedTree {
 
         let mut dtrmi = 0;
         let mut dtothi = 1;
-        println!("{:?} k={}  {}", dt, k, rk);
+        // println!("{:?} k={}  {}", dt, k, rk);
 
         if rk >= resu.len() - 1 {
             rk -= resu.len() - 1;
@@ -97,10 +136,12 @@ impl RootedTree {
         true
     }
 
-    pub fn subtree_swap_with_edge(&self, ei: usize, prng: &mut Prng,
-        tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool
+    pub fn subtree_swap_with_edge(&mut self, ei: usize, prng: &mut Prng,
+        edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool
     {
-        let dt = self.edge_removable_for_swap(ei, tarjan_solver, edges);
+
+        self.update_parents();
+        let dt = self.edge_removable_for_swap(ei, edges);
         if dt[0].len() == 0 {
             return false;
         }
@@ -119,11 +160,11 @@ impl RootedTree {
 
     }
 
-    pub fn subtree_swap_with_random_edge(&self, prng: &mut Prng, 
-        tarjan_solver: &TarjanSolver, edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool {
+    pub fn subtree_swap_with_random_edge(&mut self, prng: &mut Prng, 
+        edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool {
         
         let ei = (prng.next_u64() % edges.len() as u64) as usize;
-        self.subtree_swap_with_edge(ei, prng, tarjan_solver, edges, g, tree_buf)
+        self.subtree_swap_with_edge(ei, prng, edges, g, tree_buf)
     }
 
     // critical path subtree swap
@@ -165,7 +206,7 @@ impl RootedTree {
     fn subtree_swap_with_vertices(&self, prng: &mut Prng, vertices: &Vec<usize>,
         g: &Graph, tree_buf: &mut Graph)
     {
-        
+        //println!("{:?}", vertices);
 
         let mut covered_vertices = vec![false; self.n];
         //let vertices = self.get_critical_path(prng, tree_buf);
@@ -174,7 +215,7 @@ impl RootedTree {
             covered_vertices[v] = true;
         }
 
-        println!("{:?}", vertices);
+        //println!("{:?}", vertices);
 
         let mut possible_edges = vec![];
 
@@ -268,6 +309,221 @@ impl Graph {
     }
 
 }
+
+
+
+#[derive(Debug, Clone, Copy)]
+pub enum NeighborhoodStrategies {
+    EdgeSwap,
+    EdgeSubtreeRelocation,
+    CriticalPathSubtreeRelocation
+}
+
+pub struct VNS {
+    n: usize,
+    g: Graph,
+    tree_buf: Graph,
+    tarjan_solver: TarjanSolver,
+    edges: Vec<[usize; 2]>,
+    prng: Prng,
+    edge_betweeness_centrality: Vec<f64>,
+
+    k: usize, // current neighborhood
+    l: usize, // current neighborhood (VND)
+    neighborhood_strategies: &'static [NeighborhoodStrategies],
+
+    neighborhood_sample_sizes: &'static [usize],
+
+    dist_matrix: Vec<u32>
+}   
+
+impl VNS {
+
+    pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> VNS {
+        use NeighborhoodStrategies::*;
+        static NEIGHBORHOOD_STRATEGIES: [NeighborhoodStrategies; 3] = [EdgeSwap, CriticalPathSubtreeRelocation, EdgeSubtreeRelocation];
+        static NEIGHBORHOOD_SAMPLE_SIZES: [usize; 3] = [20, 10, 10];
+
+        let prng = Prng::seed_from_u64(seed_u64);
+        let edges = g.get_edges();
+        let n = g.n;
+
+
+        VNS { n, g, tree_buf: Graph::new_empty(n),
+            tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
+            k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES,
+            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES, dist_matrix }
+
+
+    }
+
+
+    pub fn init_strategy(&mut self, x: &mut RootedTree, i: usize) {
+        use NeighborhoodStrategies::*;
+        match self.neighborhood_strategies[i] {
+            EdgeSwap => {
+                x.update_parents();
+            },
+            _ => ()
+        }
+    }
+
+    pub fn get_neighbor(&mut self, x: &mut RootedTree, i: usize) -> RootedTree {
+        // /!\ appeler init_strategy avant
+
+        use NeighborhoodStrategies::*;
+        match self.neighborhood_strategies[i] {
+            EdgeSwap => {
+                let mut y = x.clone();
+                //self.tarjan_solver.launch(&y, &self.g);
+                while !y.edge_swap_random(&mut self.prng, &self.edges) {};
+                y
+            },
+            EdgeSubtreeRelocation => {
+                while !x.subtree_swap_with_random_edge(&mut self.prng, &self.edges, &self.g, &mut self.tree_buf) {};
+                let root = (self.prng.next_u64() % self.n as u64) as usize;
+                RootedTree::from_graph(&self.tree_buf, root)
+            },
+            CriticalPathSubtreeRelocation => {
+                x.subtree_swap_with_random_critical_path(&mut self.prng, &self.g, &mut self.tree_buf);
+                let root = (self.prng.next_u64() % self.n as u64) as usize;
+                RootedTree::from_graph(&self.tree_buf, root)
+            }
+        }
+    }
+
+    pub fn improve(&mut self, mut x: RootedTree, mut xdist: f64, i: usize) -> (RootedTree, f64) {
+        // pour le moment: best improvement repetee jusqu'a ne plus avoir d'improvement
+
+        self.init_strategy(&mut x, i);
+
+
+        let mut keep_going;
+
+        loop {
+            keep_going = false;
+
+            let mut iter_best_tree = RootedTree::new(self.n, 0);
+            let mut iter_best_disto = f64::INFINITY;
+            for _sample_id in 0..self.neighborhood_sample_sizes[i] {
+                let y = self.get_neighbor(&mut x, i);
+                let disty = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+            
+                if disty < xdist && disty < iter_best_disto {
+                    iter_best_disto = disty;
+                    iter_best_tree = y;
+                    keep_going = true;  // au moins 1 improvement => on continue
+                }
+            }
+            
+            if !keep_going {break}
+
+            x = iter_best_tree;
+            xdist = iter_best_disto;
+        }
+
+        (x, xdist)
+
+    }
+
+    pub fn vnd(&mut self, mut x: RootedTree, mut xdist: f64) -> (RootedTree, f64) {
+        self.l = 0;
+        while self.l < self.neighborhood_strategies.len() {
+            let xdist_previous = xdist;
+            (x, xdist) = self.improve(x, xdist, self.l);
+
+            if xdist < xdist_previous {
+                self.l = 0;
+            } else {
+                self.l += 1;
+            }
+        }
+
+        (x, xdist)
+    }
+
+    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize) -> (RootedTree, f64) {
+
+        for _iter_id in 0..niter {
+            println!("iter number {}", _iter_id);
+            self.k = 0;
+
+            while self.k < self.neighborhood_strategies.len() {
+                let xdist_previous = xdist;
+
+                self.init_strategy(&mut x, self.k);
+                let y = self.get_neighbor(&mut x, self.k);
+                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+
+                let (x2, xdist2) = self.vnd(y, ydist);
+                if xdist2 < xdist_previous {
+                    (x, xdist) = (x2, xdist2);
+                    self.k = 0;
+                } else {
+                    self.k += 1
+                }
+            }
+
+        }
+
+        (x, xdist)
+    }
+
+    pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> f64 {
+        let x = self.g.random_tree2(&mut self.prng);
+        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+
+        let (y, _ydist) = self.gvns(x, xdist, niter);
+
+        y.distorsion(&self.dist_matrix)
+
+
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
