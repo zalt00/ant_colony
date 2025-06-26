@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{aco2::Uf, graph::{Graph, RootedTree}};
+use crate::{graph::{Graph, RootedTree}, utils::Uf};
 
 
 impl Graph {

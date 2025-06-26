@@ -1,12 +1,10 @@
 use std::usize;
 use std::{fmt::Debug, u32};
 
-use rand::RngCore;
 use rustworkx_core::petgraph;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::aco2::TarjanSolver;
-use crate::utils::Par;
+use crate::utils::TarjanSolver;
 
 
 

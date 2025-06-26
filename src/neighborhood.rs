@@ -1,6 +1,6 @@
 use rand::{seq::SliceRandom, RngCore};
 
-use crate::{aco2::{TarjanSolver, Uf}, graph::{Graph, RootedTree, N}, my_rand::Prng};
+use crate::{utils::{TarjanSolver, Uf}, graph::{Graph, RootedTree, N}, my_rand::Prng};
 
 
 impl RootedTree {
