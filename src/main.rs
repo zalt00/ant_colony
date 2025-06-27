@@ -333,14 +333,25 @@ fn main() {
                     //test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
 
                     println!("launching test: VNS");
-                    let gdt = &data.samples[1];
-                    println!("sample name: <{}>", gdt.label);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut vns = VNS::new(g, 1203, ebc, dm);
-                    let d = vns.gvns_random_start_nonapprox_timeout(30.0);
+                    for gdt in data.samples.iter() {
+                        println!("sample name: <{}>", gdt.label);
+                        let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    println!("{}", d);
+                        let mut vns = VNS::new(g, 1203, ebc, dm);
+                        let d = vns.gvns_random_start_nonapprox_timeout(1.0);
+
+                        println!("disto={}", d);
+
+                        println!("saving..");
+                        let mut file = File::create(format!("{}_result", gdt.label)).expect("bah");
+
+                        writeln!(file, "distorsion={:?}", d).expect("beuh");
+
+                        println!("\n");
+                    }
+
+
 
                 }                
             }

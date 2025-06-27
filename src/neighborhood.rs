@@ -438,13 +438,15 @@ impl VNS {
         };
 
         for _iter_id in 0..niter {
-            println!("iter number {}", _iter_id + 1);
+            //println!("iter number {}", _iter_id + 1);
 
             if has_time_limit {
                 let elapsed = now.unwrap().elapsed();
 
-                println!("elapsed: {:?}", elapsed);
                 if elapsed.as_secs_f64() >= time_limit {
+                    println!("elapsed: {:?}", elapsed);
+                    println!("iter number {}", _iter_id + 1);
+
                     break
                 }
             }
@@ -493,7 +495,7 @@ impl VNS {
         let x = self.g.random_tree2(&mut self.prng);
         let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
 
-        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, usize::MAX - 10, time_limit);
+        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, 100000, time_limit);
 
         y_real_dist
     }
