@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 use rand::SeedableRng;
 
-use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::Graph, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
+use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph}, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
 
 pub mod graph;
 pub mod my_rand;
@@ -100,13 +100,14 @@ pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
 }
 
 
+pub fn unwrap_pair<T1, T2>(arg: (Option<T1>, Option<T2>)) -> (T1, T2) {
+    (arg.0.unwrap(), arg.1.unwrap())
+}
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
-    let g = gdt.to_graph();
+    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
     assert!(g.is_connected());
-    let ebc = gdt.ebc.as_ref().unwrap();
-    let dm = gdt.dist_matrix.as_ref().unwrap();
 
     // let c = 100.0;
     // let evap = 0.01;
@@ -208,9 +209,11 @@ fn main() {
 
     if mode == "setup" {
         println!("setup");
-        // Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
-        // Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
+        Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
+        Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
 
+        let dt = Data::load_benchmark_directory("./data/Graph Benchmark");
+        dt.save("./data/graph-benchmark-samples.data");
 
 
         let mut profiles: HashMap<String, Profile> = HashMap::new();
@@ -221,6 +224,7 @@ fn main() {
             ));
         }
         
+        profiles.insert("benchmark".to_string(), Profile::VNSFullTest);
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
 
         profiles.insert(format!("vns-vs-aco"), Profile::VNSvsACO(
@@ -255,11 +259,9 @@ fn main() {
                     let gdt = &data.samples[0];
 
                     println!("n={}, m={}", gdt.n, gdt.m);
-                    let g = gdt.to_graph();
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
                     assert!(g.is_connected());
-                    let ebc = gdt.ebc.as_ref().unwrap();
 
-                    let dm = gdt.dist_matrix.as_ref().unwrap();
                     let mut prng = Prng::seed_from_u64(987);
                     let edges = &g.get_edges();
                     let tarjan_solver= &mut TarjanSolver::new(g.n);
@@ -267,11 +269,11 @@ fn main() {
                     for _ in 0..1000 {
                         let t1 = g.random_tree2(&mut prng);
                         let t2 = g.random_tree2(&mut prng);
-                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, ebc);
-                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, ebc);
+                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, &ebc);
+                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, &ebc);
 
-                        let d1 = t1.distorsion(dm);
-                        let d2 = t2.distorsion(dm);
+                        let d1 = t1.distorsion(&dm);
+                        let d2 = t2.distorsion(&dm);
 
                         if (da1 < da2 && d1 > d2) || (da1 > da2 && d1 < d2) {
                             _pas_cool += 1;
@@ -315,14 +317,32 @@ fn main() {
 
                     println!("launching test: VNS");
                     let gdt = &data.samples[0];
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut vns = VNS::new(gdt.to_graph(), 123, gdt.ebc.clone().unwrap(), gdt.dist_matrix.clone().unwrap());
-                    let d = vns.gvns_random_start_nonapprox(30);
+                    let mut vns = VNS::new(g, 1203, ebc, dm);
+                    let d = vns.gvns_random_start_nonapprox(120);
 
                     println!("vns result: {}", d);
+                    print_counters();
 
                 },
-                
+                Profile::VNSFullTest => {
+
+                    println!("loading samples...");
+                    let data = Data::load("data/graph-benchmark-samples.data");
+                    //test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
+
+                    println!("launching test: VNS");
+                    let gdt = &data.samples[1];
+                    println!("sample name: <{}>", gdt.label);
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+                    let mut vns = VNS::new(g, 1203, ebc, dm);
+                    let d = vns.gvns_random_start_nonapprox_timeout(30.0);
+
+                    println!("{}", d);
+
+                }                
             }
         } else {
             println!("invalid profile, avalaible profiles are:");

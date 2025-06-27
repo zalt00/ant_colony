@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
 use crate::{utils::{TarjanSolver, Uf}, graph::{Graph, RootedTree, N}, my_rand::Prng};
@@ -43,24 +45,6 @@ impl RootedTree {
                 }
                 wv = self.parents[wv];
             }
-
-            //println!("root={}, lca={}, u={}, v={}", self.root, lca, u, v);
-
-            // while w != lca {
-            //     resu.push(w);
-            //     w = self.parents[w];
-            // }
-
-            // w = v;
-            // while w != lca {
-            //     //println!("w={}", w);
-            //     resv.push(w);
-            //     if w == usize::MAX {
-            //         println!("{} {} {} {:?} {:?}", u, v, lca, resu, resv);
-            //     }
-
-            //     w = self.parents[w]
-            // }
 
             resu.push(wu);
             resv.push(wv);
@@ -341,8 +325,8 @@ impl VNS {
 
     pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> VNS {
         use NeighborhoodStrategies::*;
-        static NEIGHBORHOOD_STRATEGIES: [NeighborhoodStrategies; 3] = [EdgeSwap, CriticalPathSubtreeRelocation, EdgeSubtreeRelocation];
-        static NEIGHBORHOOD_SAMPLE_SIZES: [usize; 3] = [20, 10, 10];
+        static NEIGHBORHOOD_STRATEGIES: [NeighborhoodStrategies; 3] = [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap];
+        static NEIGHBORHOOD_SAMPLE_SIZES: [usize; 3] = [25, 25, 40];
 
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
@@ -362,7 +346,7 @@ impl VNS {
         use NeighborhoodStrategies::*;
         match self.neighborhood_strategies[i] {
             EdgeSwap => {
-                x.update_parents();
+                x.update_parents();  // todo cette chose n'a pas a exister
             },
             _ => ()
         }
@@ -442,42 +426,76 @@ impl VNS {
         (x, xdist)
     }
 
-    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize) -> (RootedTree, f64) {
+    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize, time_limit: f64) -> (RootedTree, f64, f64) {
+
+        let mut x_real_dist = f64::INFINITY;
+        let has_time_limit = time_limit >= 0.0;
+
+        let now = if has_time_limit {
+            Some(Instant::now())
+        } else {
+            None
+        };
 
         for _iter_id in 0..niter {
-            println!("iter number {}", _iter_id);
+            println!("iter number {}", _iter_id + 1);
+
+            if has_time_limit {
+                let elapsed = now.unwrap().elapsed();
+
+                println!("elapsed: {:?}", elapsed);
+                if elapsed.as_secs_f64() >= time_limit {
+                    break
+                }
+            }
+
+
             self.k = 0;
 
             while self.k < self.neighborhood_strategies.len() {
                 let xdist_previous = xdist;
 
+                // shake
                 self.init_strategy(&mut x, self.k);
                 let y = self.get_neighbor(&mut x, self.k);
                 let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
 
+                // descente
                 let (x2, xdist2) = self.vnd(y, ydist);
-                if xdist2 < xdist_previous {
+                let x2_real_dist = x2.distorsion(&self.dist_matrix);
+
+                // update
+                if x2_real_dist < x_real_dist && xdist2 < xdist_previous {
                     (x, xdist) = (x2, xdist2);
+                    x_real_dist = x2_real_dist;
                     self.k = 0;
                 } else {
                     self.k += 1
                 }
             }
+            println!("dist approx: {}, disto {}", xdist, x_real_dist);
 
         }
 
-        (x, xdist)
+        (x, xdist, x_real_dist)
     }
 
     pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> f64 {
         let x = self.g.random_tree2(&mut self.prng);
         let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
 
-        let (y, _ydist) = self.gvns(x, xdist, niter);
+        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, niter, -1.0);
 
-        y.distorsion(&self.dist_matrix)
+        y_real_dist
+    }
 
+    pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> f64 {
+        let x = self.g.random_tree2(&mut self.prng);
+        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
 
+        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, usize::MAX - 10, time_limit);
+
+        y_real_dist
     }
 
 }

@@ -287,7 +287,7 @@ pub struct RootedTree {
     pub(crate) children: Vec<Vec<usize>>,
     pub(crate) root: usize,
     pub(crate) depths: Vec<usize>,
-    pub(crate) parents: Vec<usize>
+    pub(crate) parents: Vec<usize>  // todo cette chose n'a pas a exister
 }
 
 impl RootedTree {
@@ -318,6 +318,16 @@ impl RootedTree {
     }
 
 
+}
+
+
+pub static mut COUNTER_APPROX: usize = 0;
+pub static mut COUNTER_NONAPPROX: usize = 0;
+
+pub fn print_counters() {
+    unsafe {let v1 = COUNTER_APPROX;
+    let v2 = COUNTER_NONAPPROX;
+    println!("{} {}", v1, v2)}
 }
 
 impl RootedTree {
@@ -377,7 +387,7 @@ impl RootedTree {
             tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>) -> f64 {
 
         let lca = tarjan_solver.launch(self, g);
-        
+
         let mut s = 0.0;
 
         for &[u, v] in edges {

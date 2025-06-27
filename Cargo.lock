@@ -26,6 +26,7 @@ name = "ant_colony"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "glob",
  "petgraph 0.8.2",
  "rand 0.9.1",
  "rand_xoshiro",
@@ -143,6 +144,12 @@ dependencies = [
  "r-efi",
  "wasi 0.14.2+wasi-0.2.4",
 ]
+
+[[package]]
+name = "glob"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
 name = "hashbrown"

@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
@@ -151,7 +151,7 @@ impl Data {
         for sample_id in 1..=n_samples { 
             println!("generating sample {}", sample_id);
             let g = Graph::random_graph(n, m, &mut prng);
-            samples.push(GraphData::from_graph(&g));
+            samples.push(GraphData::from_graph(&g, false, false));
         }
 
         Data { n_samples, samples }
@@ -169,32 +169,45 @@ impl Data {
     pub fn load(path: &str) -> Data {
         bincode::decode_from_std_read(&mut File::open(path).expect("beuh"), bincode::config::standard()).expect("wee")
     }
+
+    pub fn load_benchmark_directory(path: &str) -> Data {
+        let mut samples = vec![];
+        for entry in glob::glob(&format!("{}/**/*.txt", path)).expect("wee") {
+            println!("loading: <{:?}>", entry.as_ref().expect("baa"));
+            samples.push(GraphData::from_text_file(entry.expect("bouuuh").to_str().unwrap()))
+        }
+
+        Data { n_samples: samples.len(), samples }
+    }
+
 }
 
 #[derive(Encode, Decode)]
 pub struct GraphData {
+    pub label: String,
     pub n: usize,
     pub m: usize,
     pub edges: Vec<[usize; 2]>,
-    pub ebc: Option<Vec<f64>>,
-    pub dist_matrix: Option<Vec<u32>>
+    ebc: Option<Vec<f64>>,
+    dist_matrix: Option<Vec<u32>>
 
 }
 
 impl GraphData {
-    pub fn from_graph(g: &Graph) -> GraphData {
+    pub fn from_graph(g: &Graph, compute_ebc: bool, compute_dm: bool) -> GraphData {
+
         let n = g.n;
         let edges = g.get_edges();
         let m = edges.len();
         println!("computing ebc..");
-        let ebc = Some(g.get_edge_betweeness_centrality());
+        let ebc = if compute_ebc {Some(g.get_edge_betweeness_centrality())} else {None};
 
         println!("computing dist matrix..");
-        let dist_matrix = Some(g.get_dist_matrix());
+        let dist_matrix = if compute_dm {Some(g.get_dist_matrix())} else {None};
 
         println!("done.");
 
-        GraphData { n, m, edges, ebc, dist_matrix }
+        GraphData { label: "unlabeled".to_string(), n, m, edges, ebc, dist_matrix }
     }
 
     pub fn to_graph(&self) -> Graph {
@@ -205,6 +218,57 @@ impl GraphData {
 
         g
     }
+
+    pub fn from_text_file(path: &str) -> GraphData {
+        let file = File::open(path).expect("welp");
+
+        let mut edges = vec![];
+        
+        let reader = BufReader::new(file);
+        for line_res in reader.lines() {
+            if let Ok(line) = line_res {
+                let values: Vec<usize> = line.split(' ').map(|xs| {xs.parse::<usize>().unwrap()}).collect();
+                edges.push([values[0], values[1]])
+            } else {
+                panic!()
+            }
+        }
+
+        let mut n = 0;
+        for &[u, v] in &edges {
+            n = n.max(u).max(v);
+        }
+        n += 1;
+        let m = edges.len();
+
+        let gdt = GraphData { label: String::new(), n, m, edges, ebc: None, dist_matrix: None };
+        let g = gdt.to_graph();
+          
+        let mut gdt2 = GraphData::from_graph(&g, false, false);
+        gdt2.label = path.to_string();
+        gdt2
+    }
+
+    pub fn graph_ebc_dist_matrix(&self) -> (Graph, Vec<f64>, Vec<u32>) {
+        let g = self.to_graph();
+
+        let ebc = if let Some(ebc) = &self.ebc {
+            ebc.clone()
+        } else {
+            g.get_edge_betweeness_centrality()
+        };
+
+        let dm = if let Some(dm) = &self.dist_matrix {
+            dm.clone()
+        } else {
+            g.get_dist_matrix()
+        };
+
+        (g, ebc, dm)
+
+    }
+
+
 }
 
 

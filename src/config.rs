@@ -19,7 +19,9 @@ pub enum Profile {
     DistoApprox,
     AntColony(AntColonyProfile),
     NeighborhoodTest,
-    VNSvsACO(AntColonyProfile)
+    VNSvsACO(AntColonyProfile),
+
+    VNSFullTest
 }
 
 #[derive(Serialize, Deserialize)]
