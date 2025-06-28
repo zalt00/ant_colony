@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 use rand::SeedableRng;
 
-use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph}, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
+use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph}, greedy::greedy_ebc_delete_no_recompute, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
 
 pub mod graph;
 pub mod my_rand;
@@ -331,6 +331,13 @@ fn main() {
                     println!("loading samples...");
                     let data = Data::load("data/graph-benchmark-samples.data");
                     //test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
+
+                    let gdt = &data.samples[0];
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+
+                    let (disto, _) = greedy_ebc_delete_no_recompute(&g, &ebc, &dm);
+                    println!("greedy: {}", disto);
 
                     println!("launching test: VNS");
 

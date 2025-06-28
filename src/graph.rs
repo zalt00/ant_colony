@@ -134,8 +134,26 @@ impl Graph {
         self.decr_neighboor_count_unchecked(j);
     }
 
+    pub fn remove_edge_slow(&mut self, edge: [usize; 2]) {
+        let [u, v] = edge;
+        let i = self.get_neighbors(u).iter().position(|x| {*x == v}).unwrap();
+        let arr = self.get_neighbors_mut(u);
+        arr[i] = *arr.last().unwrap();
+        self.decr_neighboor_count_unchecked(u);
+
+        let i = self.get_neighbors(v).iter().position(|x| {*x == u}).unwrap();
+        let arr = self.get_neighbors_mut(v);
+        arr[i] = *arr.last().unwrap();
+        self.decr_neighboor_count_unchecked(v);
+    }
+
     pub fn get_neighbors(&self, i: usize) -> &[usize] {
         &self.adj_tab[i * self.n + 1..i * self.n + self.get_neighboor_count_unchecked(i) + 1]
+    }
+
+    fn get_neighbors_mut(&mut self, i: usize) -> &mut [usize] {
+        let nc = self.get_neighboor_count_unchecked(i);
+        &mut self.adj_tab[i * self.n + 1..i * self.n + nc + 1]
     }
 
     pub fn from_string(s: String) -> Option<(f64, Graph)> {

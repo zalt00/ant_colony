@@ -105,6 +105,31 @@ impl Graph {
         petgraph::algo::connected_components(&g) == 1
     }
 
+    pub fn is_connected_without(&self, edge: [usize; 2]) -> bool {
+                let edges = self.get_edges();
+        let node_count = self.n;
+
+        // 3) Création d'un graphe non orienté, poids () sur les arêtes
+        let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
+
+        // 4) Ajout des nœuds, étiquetés ici par leur index
+        let node_indices: Vec<petgraph::graph::NodeIndex> = (0..node_count)
+            .map(|i| g.add_node(i))
+            .collect();
+
+        // 5) Ajout des arêtes depuis `edges`
+        for &[u, v] in &edges {
+            if u.min(v) != edge[0].min(edge[1]) || u.max(v) != edge[0].max(edge[1]) {
+                g.add_edge(node_indices[u], node_indices[v], ());
+
+            }
+            // on suppose 0 <= u, v < node_count
+        }
+
+        // 6) Génération et affichage du DOT (sans étiquette sur les arêtes)
+        petgraph::algo::connected_components(&g) == 1
+    }
+
     pub fn random_tree2(&self, prng: &mut Xoshiro256PlusPlus) -> RootedTree {
         let mut uf = Uf::init(self.n);
 
