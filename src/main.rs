@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::{Read, Write}};
+use std::{collections::HashMap, fs::File, io::Write};
 
 
 
@@ -16,92 +16,6 @@ pub mod random_graph_generator;
 pub mod config;
 pub mod neighborhood;
 
-
-pub fn test_on_facebook(c: f64, evap: f64, seed: u64) {
-    let mut s = String::new();
-
-    let mut file = File::open("data/facebook_converted.graph").expect("error");
-    let mut v = vec![];
-    file.read_to_string(&mut s).expect("dfsdf");
-
-
-
-    for (_i, gs) in s.split("::").enumerate() {
-        let gstring = gs.trim().to_string();
-        if gstring.len() > 0 {
-
-            let (_disto, g) = Graph::from_string(gstring).expect("welp");
-
-            v.push(g);
-
-            //if i == 0 {break}
-        }
-    }
-    let mut s2 = String::new();
-    let mut file2 = File::open("data/facebook_ebc.json").expect("welp");
-    file2.read_to_string(&mut s2).expect("weeelp");
-    let ebc: Vec<f64> = serde_json::from_str(&s2).expect("wlpe2");
-
-    let mut s2 = String::new();
-    let mut file2 = File::open("data/facebook_distmat.json").expect("welp");
-    file2.read_to_string(&mut s2).expect("weeelp");
-    let dm: Vec<u32> = serde_json::from_str(&s2).expect("wlpe2");
-
-    // let c = 100.0;
-    // let evap = 0.01;
-    let k = 10;
-    let ic = 100;
-
-
-    let max_tau = 16.0;
-    let min_tau = 0.2;
-    let tau_init = 15.0;
-
-    let g = &v[0];
-
-
-    let (dist1, _) = (0.0, ());//aco.launch(ic);
-
-    // println!("{:?}", now.elapsed());
-
-    // let now = Instant::now();
-
-    let mut dist2_sum = 0.0;
-    let mut counter = 0;
-
-    let mut vecs = vec![];
-
-    for i in 0..5 {
-        println!("init aco2");
-
-        let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
-        dm.clone());
-            println!("launch aco2");
-
-        let dist2 = aco2.launch(ic, 1.0);
-        dist2_sum += dist2;
-        counter += 1;
-
-        vecs.push(aco2.trace)
-    }
-
-
-    // println!("{:?}", now.elapsed());
-
-    let s = serde_json::to_string(&vecs).expect("welp");
-    // println!("{:?}", g.get_edge_betweeness_centrality());
-    println!("saving...");
-    let mut output = File::create("trace.json").expect("welp2");
-    output.write_fmt(core::format_args!("{}",s)).expect("weee");
-
-    println!("aco1={}, aco2={}", dist1, dist2_sum / counter as f64);
-
-}
-
-
-pub fn unwrap_pair<T1, T2>(arg: (Option<T1>, Option<T2>)) -> (T1, T2) {
-    (arg.0.unwrap(), arg.1.unwrap())
-}
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
@@ -158,40 +72,6 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
 
     println!("aco1={}, aco2={}", dist1, dist2_sum / counter as f64);
 
-}
-
-
-
-
-pub fn get_graphs() -> Vec<Graph> {
-    let mut s = String::new();
-    let mut file = File::open("data/facebook_converted.graph").expect("error");
-    let mut v = vec![];
-    file.read_to_string(&mut s).expect("j");
-
-
-    for (_i, gs) in s.split("::").enumerate() {
-        let gstring = gs.trim().to_string();
-        if gstring.len() > 0 {
-
-            let (_disto, g) = Graph::from_string(gstring).expect("welp");
-
-            println!("serializing...");
-            let s = serde_json::to_string(&g.get_edge_betweeness_centrality()).expect("welp");
-            // println!("{:?}", g.get_edge_betweeness_centrality());
-            println!("saving...");
-            let mut output = File::create("data/facebook_ebc.json").expect("welp2");
-            output.write_fmt(core::format_args!("{}",s)).expect("weee");
-
-            println!("done.");
-
-            v.push(g);
-
-            //if i == 0 {break}
-        }
-    }
-
-    v
 }
 
 
