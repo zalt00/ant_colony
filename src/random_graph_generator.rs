@@ -130,7 +130,7 @@ impl Graph {
         petgraph::algo::connected_components(&g) == 1
     }
 
-    pub fn random_tree2(&self, prng: &mut Xoshiro256PlusPlus) -> RootedTree {
+    pub fn random_subtree(&self, prng: &mut Xoshiro256PlusPlus) -> RootedTree {
         let mut uf = Uf::init(self.n);
 
         let mut edges = self.get_edges();

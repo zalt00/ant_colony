@@ -391,7 +391,7 @@ impl VNS {
             let mut iter_best_disto = f64::INFINITY;
             for _sample_id in 0..self.neighborhood_sample_sizes[i] {
                 let y = self.get_neighbor(&mut x, i);
-                let disty = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+                let disty = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
             
                 if disty < xdist && disty < iter_best_disto {
                     iter_best_disto = disty;
@@ -460,7 +460,7 @@ impl VNS {
                 // shake
                 self.init_strategy(&mut x, self.k);
                 let y = self.get_neighbor(&mut x, self.k);
-                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
                 // descente
                 let (x2, xdist2) = self.vnd(y, ydist);
@@ -483,8 +483,8 @@ impl VNS {
     }
 
     pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> f64 {
-        let x = self.g.random_tree2(&mut self.prng);
-        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+        let x = self.g.random_subtree(&mut self.prng);
+        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
         let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, niter, -1.0);
 
@@ -492,8 +492,8 @@ impl VNS {
     }
 
     pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> f64 {
-        let x = self.g.random_tree2(&mut self.prng);
-        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+        let x = self.g.random_subtree(&mut self.prng);
+        let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
         let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, 100000, time_limit);
 

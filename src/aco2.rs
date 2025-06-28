@@ -184,12 +184,12 @@ impl ACO2 {
         if let Some(t) = &self.base_tree {
             cur_best_tree = t.clone();
             cur_best_disto = cur_best_tree
-                .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+                .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                &self.dist_matrix);
         } else {
             cur_best_tree = RootedTree::new(self.n, 0);
             cur_best_disto = f64::INFINITY;
         }
-        //println!("{:?}", self.edge_to_index);
 
         for _iter_id in 1..=iter_count {
 
@@ -227,7 +227,8 @@ impl ACO2 {
                 debug_assert!(self.covered_vertices.iter().all(|x| *x));
 
                 let disto_approx = self.tree.disto_approx(&self.g,
-                    &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality);
+                    &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                &self.dist_matrix);
                 
                 // let _vraie_disto = self.tree.distorsion(&self.dist_matrix);
                 // let _vraie_disto_best = cur_best_tree.distorsion(&self.dist_matrix);

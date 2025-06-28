@@ -10,7 +10,6 @@ use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::{pri
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;
-pub mod aco1;
 pub mod aco2;
 pub mod utils;
 pub mod random_graph_generator;
@@ -267,10 +266,10 @@ fn main() {
                     let tarjan_solver= &mut TarjanSolver::new(g.n);
                     
                     for _ in 0..1000 {
-                        let t1 = g.random_tree2(&mut prng);
-                        let t2 = g.random_tree2(&mut prng);
-                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, &ebc);
-                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, &ebc);
+                        let t1 = g.random_subtree(&mut prng);
+                        let t2 = g.random_subtree(&mut prng);
+                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, &ebc, &vec![]);
+                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, &ebc, &vec![]);
 
                         let d1 = t1.distorsion(&dm);
                         let d2 = t2.distorsion(&dm);
@@ -292,7 +291,7 @@ fn main() {
 
                     g.to_dot("graph.dot");
 
-                    let mut t = g.random_tree2(&mut prng);
+                    let mut t = g.random_subtree(&mut prng);
                     t.update_parents();
                     t.to_graph().to_dot("tree.dot");
 
@@ -338,6 +337,13 @@ fn main() {
 
                     let (disto, _) = greedy_ebc_delete_no_recompute(&g, &ebc, &dm);
                     println!("greedy: {}", disto);
+
+                    let gdt = &data.samples[15];
+                    println!("sample name: <{}>", gdt.label);
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+                    let mut vns = VNS::new(g, 1203, ebc, dm);
+                    let _d = vns.gvns_random_start_nonapprox_timeout(1.0);
 
                     println!("launching test: VNS");
 

@@ -15,3 +15,8 @@ glob = "*"
 
 [profile.release]
 debug = false
+
+[features]
+no_distorsion_approx = []
+my_custom_feature = []
+

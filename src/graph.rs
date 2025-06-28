@@ -7,7 +7,6 @@ use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 use crate::utils::TarjanSolver;
 
 
-
 pub const N: usize = 10000;
 
 pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
@@ -401,8 +400,10 @@ impl RootedTree {
         tree
     }
 
+
+    #[cfg(not(feature = "no_distorsion_approx"))]
     pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
-            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>) -> f64 {
+            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>, _dm: &Vec<u32>) -> f64 {
 
         let lca = tarjan_solver.launch(self, g);
 
@@ -415,6 +416,15 @@ impl RootedTree {
 
 
         s / self.n as f64 / (self.n - 1) as f64
+    }
+
+    #[cfg(feature = "no_distorsion_approx")]
+    pub fn disto_approx(&self, _g: &Graph, _edges: &Vec<[usize; 2]>,
+            _tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, dm: &Vec<u32>) -> f64 {
+
+        let mut t = self.to_graph();
+
+        t.distorsion(&mut t.get_dist_matrix(), &dm)
     }
 
     pub fn slow_disto_approx(&self, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
