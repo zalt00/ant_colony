@@ -3,19 +3,20 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 
 
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
-use crate::{aco2::ACO2, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph}, greedy::greedy_ebc_delete_no_recompute, my_rand::Prng, neighborhood::VNS, random_graph_generator::{Data, GraphData}, utils::{test_segment_tree, TarjanSolver}};
+use crate::{aco2::ACO2, annealing::SA, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph, RootedTree}, graph_generator::{Data, GraphData}, greedy::greedy_ebc_delete_no_recompute, my_rand::{random_permutation, Prng}, neighborhood::VNS, utils::{test_segment_tree, TarjanSolver}};
 
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;
 pub mod aco2;
 pub mod utils;
-pub mod random_graph_generator;
+pub mod graph_generator;
 pub mod config;
 pub mod neighborhood;
-
+pub mod annealing;
+pub mod trace;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
@@ -25,7 +26,7 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
     // let c = 100.0;
     // let evap = 0.01;
     let k = 10;
-    let ic = 600;
+    let _ic = 600;
 
 
     let max_tau = 80.0;
@@ -50,15 +51,15 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
         // let (disto, _) = greedy_algo(&g, &dm);
         // println!("{}", disto);
 
-        let mut aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
+        let mut _aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
         dm.clone());
             println!("launch aco2");
 
-        let dist2 = aco2.launch(ic, w);
+        let dist2 = 0.0;//aco2.launch(ic, w);
         dist2_sum += dist2;
         counter += 1;
 
-        vecs.push(aco2.trace)
+        vecs.push(_aco2.trace)
     }
 
 
@@ -102,6 +103,8 @@ fn main() {
                 AntColonyProfile {c: 8000.0, evap: 0.4, seed, w: 0.5, k: 10, ic: 600}
             ));
         }
+
+        profiles.insert("clique-cycle".to_string(), Profile::CliqueCycle);
         
         profiles.insert("benchmark".to_string(), Profile::VNSFullTest);
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
@@ -190,18 +193,35 @@ fn main() {
 
                 Profile::VNSvsACO(_dt) => {
                     println!("loading samples...");
-                    let data = Data::load("data/samples1000-20000.data");
+                    let data = Data::load("data/samples1000-20000-2.data");
+                    let gdt = &data.samples[0];
+
+                    println!("launching test: Annealing");
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+                    let mut sa = SA::new(g, 1203, ebc, dm);
+                    let d = sa.launch(60.0);
+                    println!("{}", d.0);
+
                     println!("launching test: ACO");
                     //test_on_graph(&data.samples[0], dt.c,dt.evap, dt.seed, dt.w);
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
+                    let max_tau = 80.0;
+                    let min_tau = 0.2;
+                    let tau_init = 76.;
+
+                    let mut aco2 = ACO2::new(g, 10, _dt.c, _dt.evap, min_tau, max_tau, tau_init, 121, None, ebc, dm);
+                    aco2.vnd_hybrid = true;
+                    let d = aco2.launch(1000000, 0.5, 6.0, 2.0);
+                    println!("d: {}", d.0);
                     println!("launching test: VNS");
-                    let gdt = &data.samples[0];
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
                     let mut vns = VNS::new(g, 1203, ebc, dm);
-                    let d = vns.gvns_random_start_nonapprox(120);
+                    let d = vns.gvns_random_start_nonapprox_timeout(60.0);
 
-                    println!("vns result: {}", d);
+                    println!("vns result: {}", d.0);
                     print_counters();
 
                 },
@@ -218,12 +238,12 @@ fn main() {
                     let (disto, _) = greedy_ebc_delete_no_recompute(&g, &ebc, &dm);
                     println!("greedy: {}", disto);
 
-                    let gdt = &data.samples[15];
-                    println!("sample name: <{}>", gdt.label);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    // let gdt = &data.samples[15];
+                    // println!("sample name: <{}>", gdt.label);
+                    // let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut vns = VNS::new(g, 1203, ebc, dm);
-                    let _d = vns.gvns_random_start_nonapprox_timeout(1.0);
+                    // let mut vns = VNS::new(g, 1203, ebc, dm);
+                    // let _d = vns.gvns_random_start_nonapprox_timeout(1.0);
 
                     println!("launching test: VNS");
 
@@ -232,21 +252,43 @@ fn main() {
                         let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
                         let mut vns = VNS::new(g, 1203, ebc, dm);
-                        let d = vns.gvns_random_start_nonapprox_timeout(1.0);
+                        let d = vns.gvns_random_start_nonapprox_timeout(20.0);
 
-                        println!("disto={}", d);
+                        println!("disto={}", d.0);
 
                         println!("saving..");
-                        let mut file = File::create(format!("{}_result", gdt.label)).expect("bah");
+                        let mut file = File::create(format!("{}_result.json", gdt.label)).expect("bah");
 
-                        writeln!(file, "distorsion={:?}", d).expect("beuh");
+                        serde_json::to_writer_pretty(&mut file, &d.1).expect("error");
 
                         println!("\n");
                     }
 
 
 
-                }                
+                },
+
+                Profile::CliqueCycle => {
+                    println!("clique cycle");
+                    let mut prng = Prng::seed_from_u64(123);
+                    let k = 20;
+                    let l = 60;
+
+                    let permutation = random_permutation(k*l, &mut prng);
+                    let g = Graph::clique_cycle(k, l).renumber(&permutation);
+                    let tree = Graph::clique_cycle_mindisto_tree(k, l).renumber(&permutation);
+                    let rooted_tree = RootedTree::from_graph(&tree, (prng.next_u64() % (k*l) as u64) as usize);
+
+                    let dm = g.get_dist_matrix();
+                    let ebc = g.get_edge_betweeness_centrality();
+
+                    println!("disto: {}", rooted_tree.distorsion(&dm));
+
+                    let mut vns = VNS::new(g, 1203, ebc, dm);
+                    let d = vns.gvns_random_start_nonapprox_timeout(20.0);
+
+                    println!("computed disto: {}", d.0);
+                }
             }
         } else {
             println!("invalid profile, avalaible profiles are:");

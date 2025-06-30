@@ -1,10 +1,14 @@
 
+use core::f64;
+use std::time::Instant;
+
 use rand::{RngCore, SeedableRng};
 use crate::my_rand::Prng;
 
+use crate::neighborhood::VNS;
+use crate::trace::TraceData;
 use crate::utils::{SegmentTree, TarjanSolver};
 use crate::{graph::{Graph, RootedTree}, my_rand::my_rand};
-
 
 
 pub struct ACO2 {
@@ -38,7 +42,9 @@ pub struct ACO2 {
     base_tree: Option<RootedTree>,
 
     dist_matrix: Vec<u32>,
-    pub trace: Vec<f64>
+    pub trace: Vec<f64>,
+
+    pub vnd_hybrid: bool
 }
 
 impl ACO2 {
@@ -70,7 +76,7 @@ impl ACO2 {
         ACO2 { n, g, tree, tau_matrix, tau_sg, adj_set,
             covered_vertices, tarjan_solver, edge_to_index, k,
             c, evap, min_tau, max_tau, tau_init, prng, edges,
-            edge_betweeness_centrality, base_tree, dist_matrix, trace: vec![] }
+            edge_betweeness_centrality, base_tree, dist_matrix, trace: vec![], vnd_hybrid: false }
     }
 
 
@@ -171,16 +177,35 @@ impl ACO2 {
 
 
 
-    pub fn launch(&mut self, iter_count: usize, w: f64) -> f64 {
+    pub fn launch(&mut self, iter_count: usize, w: f64, time_limit: f64, recheck_every: f64) -> (f64, Vec<TraceData>) {
 
         debug_assert!(self.tau_init <= self.max_tau);
 
         let mut _cool = 0;
         let mut _pas_cool = 0;
 
+        let has_time_limit = time_limit >= 0.0;
+
+        let now = if has_time_limit {
+            Some(Instant::now())
+        } else {
+            None
+        };
+
+        let mut trace = Vec::new();
+
+        let mut tot_best_tree = RootedTree::new(self.n, 0);
+        let mut tot_real_disto = f64::INFINITY;
 
         let mut cur_best_tree; 
         let mut cur_best_disto;
+
+        let mut vns = if self.vnd_hybrid {
+            Some(VNS::new(self.g.clone(), 1213, self.edge_betweeness_centrality.clone(), self.dist_matrix.clone()))
+        } else {
+            None
+        };
+
         if let Some(t) = &self.base_tree {
             cur_best_tree = t.clone();
             cur_best_disto = cur_best_tree
@@ -191,7 +216,36 @@ impl ACO2 {
             cur_best_disto = f64::INFINITY;
         }
 
+        let mut recheck_count = 0;
+
         for _iter_id in 1..=iter_count {
+
+            if has_time_limit {
+                let now = now.unwrap();
+                let elapsed = now.elapsed();
+                trace.push(TraceData::new(tot_real_disto, _iter_id, elapsed.as_secs_f64()));
+                if elapsed.as_secs_f64() >= time_limit {
+                    break
+                }
+
+                if elapsed.as_secs_f64() >= recheck_every * (recheck_count + 1) as f64 {
+                    recheck_count += 1;
+
+                    let disto = cur_best_tree.distorsion(&self.dist_matrix);
+                    if disto < tot_real_disto {
+                        tot_real_disto = disto;
+                        tot_best_tree = cur_best_tree.clone();
+                    } else {
+                        cur_best_tree = tot_best_tree.clone();
+                        cur_best_disto = tot_best_tree
+                        .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                        &self.dist_matrix);
+                    }
+
+                    println!("tot real best disto: {}", tot_real_disto);
+                }
+
+            }
 
             
             let mut iter_best_disto = f64::INFINITY;
@@ -226,9 +280,21 @@ impl ACO2 {
 
                 debug_assert!(self.covered_vertices.iter().all(|x| *x));
 
-                let disto_approx = self.tree.disto_approx(&self.g,
-                    &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
-                &self.dist_matrix);
+                
+
+                let disto_approx = if self.vnd_hybrid {
+                    let d = self.tree.disto_approx(&self.g,
+                        &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                    &self.dist_matrix);
+
+                    let (tree2, d2) = vns.as_mut().unwrap().vnd(self.tree.clone(), d);
+                    self.tree = tree2;
+                    d2
+                } else {
+                    self.tree.disto_approx(&self.g,
+                        &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                    &self.dist_matrix)
+                };
                 
                 // let _vraie_disto = self.tree.distorsion(&self.dist_matrix);
                 // let _vraie_disto_best = cur_best_tree.distorsion(&self.dist_matrix);
@@ -260,7 +326,7 @@ impl ACO2 {
 
         }
 
-        cur_best_tree.distorsion(&self.dist_matrix)
+        (cur_best_tree.distorsion(&self.dist_matrix), trace)
     }
 }
 

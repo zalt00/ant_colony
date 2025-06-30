@@ -2,16 +2,12 @@ use std::time::Instant;
 
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
-use crate::{utils::{TarjanSolver, Uf}, graph::{Graph, RootedTree, N}, my_rand::Prng};
+use crate::{graph::{Graph, RootedTree, N}, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
 
 
 impl RootedTree {
     pub fn edge_removable_for_swap(&mut self, ei: usize, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
     {
-
-
-        // aaaaarg j'avais oublie a ce truc -> dans l'idee pas forcement utile de tout calculer
-        self.recompute_depths_rec(self.root, 0);
 
         // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
         let [u, v] = edges[ei];
@@ -85,6 +81,11 @@ impl RootedTree {
             }
         }
         self.children[dt_rm[1]].swap_remove(rmj); // supprime l'enfant du parent
+
+
+        
+        // aaaaarg j'avais oublie a ce truc -> dans l'idee pas forcement utile de tout calculer
+        self.recompute_depths_rec(self.root, 0);
 
     }
 
@@ -426,10 +427,12 @@ impl VNS {
         (x, xdist)
     }
 
-    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize, time_limit: f64) -> (RootedTree, f64, f64) {
+    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize, time_limit: f64) -> (RootedTree, f64, f64, Vec<TraceData>) {
 
         let mut x_real_dist = f64::INFINITY;
         let has_time_limit = time_limit >= 0.0;
+
+        let mut trace: Vec<TraceData> = vec![];
 
         let now = if has_time_limit {
             Some(Instant::now())
@@ -437,11 +440,13 @@ impl VNS {
             None
         };
 
+
         for _iter_id in 0..niter {
             //println!("iter number {}", _iter_id + 1);
 
             if has_time_limit {
                 let elapsed = now.unwrap().elapsed();
+                trace.push(TraceData::new(x_real_dist, _iter_id, elapsed.as_secs_f64()));
 
                 if elapsed.as_secs_f64() >= time_limit {
                     println!("elapsed: {:?}", elapsed);
@@ -449,6 +454,7 @@ impl VNS {
 
                     break
                 }
+
             }
 
 
@@ -479,25 +485,26 @@ impl VNS {
 
         }
 
-        (x, xdist, x_real_dist)
+
+        (x, xdist, x_real_dist, trace)
     }
 
-    pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> f64 {
+    pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> (f64, Vec<TraceData>) {
         let x = self.g.random_subtree(&mut self.prng);
         let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
-        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, niter, -1.0);
+        let (_y, _ydist, y_real_dist, trace) = self.gvns(x, xdist, niter, -1.0);
 
-        y_real_dist
+        (y_real_dist, trace)
     }
 
-    pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> f64 {
+    pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
         let x = self.g.random_subtree(&mut self.prng);
         let xdist = x.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
-        let (_y, _ydist, y_real_dist) = self.gvns(x, xdist, 100000, time_limit);
+        let (_y, _ydist, y_real_dist, trace) = self.gvns(x, xdist, 10000, time_limit);
 
-        y_real_dist
+        (y_real_dist, trace)
     }
 
 }

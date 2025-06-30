@@ -401,7 +401,7 @@ impl RootedTree {
     }
 
 
-    #[cfg(not(feature = "no_distorsion_approx"))]
+    #[cfg(all(not(feature = "distorsion_approx_no_ebc"), not(feature="no_distorsion_approx")))]
     pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>, _dm: &Vec<u32>) -> f64 {
 
@@ -412,6 +412,29 @@ impl RootedTree {
         for &[u, v] in edges {
             let i = u + self.n * v;
             s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64 * ebc[i];
+        }
+        
+        // let ans = s / self.n as f64 / (self.n - 1) as f64;
+        // if ans >10000.0 {
+        //     println!("{}", self.to_graph().is_connected());
+
+        //     panic!()
+        // }
+
+        s / self.n as f64 / (self.n - 1) as f64
+    }
+
+    #[cfg(feature = "distorsion_approx_no_ebc")]
+    pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
+            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>, _dm: &Vec<u32>) -> f64 {
+
+        let lca = tarjan_solver.launch(self, g);
+
+        let mut s = 0.0;
+
+        for &[u, v] in edges {
+            let i = u + self.n * v;
+            s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64;
         }
 
 

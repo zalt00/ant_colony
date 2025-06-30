@@ -5,6 +5,7 @@ use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
+use crate::my_rand::Prng;
 use crate::{graph::{Graph, RootedTree}, utils::Uf};
 
 
@@ -159,6 +160,57 @@ impl Graph {
         RootedTree::from_graph(&t, root)
     }
 
+    fn fill_clique(&mut self, i: usize, j: usize) {
+        // [i, j[
+
+        for s in i..(j-1) {
+            for t in (s+1)..j {
+                self.add_edge_unckecked(s, t);
+            }
+        }
+    }
+
+    pub fn clique_cycle(clique_count: usize, clique_size: usize) -> Graph {
+        let n = clique_count * clique_size;
+        let mut g = Graph::new_empty(n);
+
+        for i in (0..n).step_by(clique_size) {
+            g.fill_clique(i, i + clique_size);
+            g.add_edge_unckecked(i, (i+clique_size) % n);
+        }
+        g
+    }
+
+    pub fn clique_cycle_mindisto_tree(clique_count: usize, clique_size: usize) -> Graph {
+        let n = clique_count * clique_size;
+        let mut g = Graph::new_empty(n);
+
+        for i in (0..n).step_by(clique_size) {
+            for j in (i+1)..(i+clique_size) {
+                g.add_edge_unckecked(i, j);
+            }
+            if i > 0 {
+                g.add_edge_unckecked(i, (i+clique_size) % n);
+            }
+        }
+        g
+    }
+
+    pub fn renumber(&self, permutation: &Vec<usize>) -> Graph {
+
+        let mut g2 = Graph::new_empty(self.n);
+        //println!("len: {}", self.n);
+        for &[u, v] in self.get_edges().iter() {
+            //println!("{} {}", u, v);
+            g2.add_edge_unckecked(permutation[u], permutation[v]);
+        } 
+
+        g2
+
+    }
+
+
+
 
 }
 
@@ -280,6 +332,7 @@ impl GraphData {
         let ebc = if let Some(ebc) = &self.ebc {
             ebc.clone()
         } else {
+            println!("compute ebc");
             g.get_edge_betweeness_centrality()
         };
 

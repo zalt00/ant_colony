@@ -18,5 +18,6 @@ debug = false
 
 [features]
 no_distorsion_approx = []
-my_custom_feature = []
+distorsion_approx = []
+distorsion_approx_no_ebc = []
 

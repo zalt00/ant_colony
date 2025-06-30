@@ -1,4 +1,4 @@
-use rand::RngCore;
+use rand::{seq::SliceRandom, RngCore};
 use rand_xoshiro::Xoshiro256PlusPlus;
 
 pub type Prng = Xoshiro256PlusPlus;
@@ -18,6 +18,12 @@ pub fn irwin_hall(prng: &mut Xoshiro256PlusPlus) -> f64 {
         s += my_rand(prng);
     }
     s - 6.0
+}
+
+pub fn random_permutation(n: usize, prng: &mut Prng) -> Vec<usize> {
+    let mut perm = (0..n).collect::<Vec<usize>>();
+    perm.shuffle(prng);
+    perm
 }
 
 

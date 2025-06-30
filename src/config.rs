@@ -21,7 +21,9 @@ pub enum Profile {
     NeighborhoodTest,
     VNSvsACO(AntColonyProfile),
 
-    VNSFullTest
+    VNSFullTest,
+
+    CliqueCycle
 }
 
 #[derive(Serialize, Deserialize)]
