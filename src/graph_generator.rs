@@ -3,7 +3,6 @@ use std::io::{BufRead, BufReader, Write};
 
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
 
 use crate::my_rand::Prng;
 use crate::{graph::{Graph, RootedTree}, utils::Uf};
@@ -11,7 +10,7 @@ use crate::{graph::{Graph, RootedTree}, utils::Uf};
 
 impl Graph {
 
-    pub fn random_tree(n: usize, prng: &mut Xoshiro256PlusPlus) -> Graph {
+    pub fn random_tree(n: usize, prng: &mut Prng) -> Graph {
 
         let mut g = Graph::new_empty(n);
 
@@ -35,7 +34,7 @@ impl Graph {
         g
     }
 
-    pub fn random_graph(n: usize, m: usize, prng: &mut Xoshiro256PlusPlus) -> Graph {
+    pub fn random_graph(n: usize, m: usize, prng: &mut Prng) -> Graph {
         let mut t = Self::random_tree(n, prng);
 
         let mut adj_mat = vec![false; n*n];
@@ -131,7 +130,7 @@ impl Graph {
         petgraph::algo::connected_components(&g) == 1
     }
 
-    pub fn random_subtree(&self, prng: &mut Xoshiro256PlusPlus) -> RootedTree {
+    pub fn random_subtree(&self, prng: &mut Prng) -> RootedTree {
         let mut uf = Uf::init(self.n);
 
         let mut edges = self.get_edges();
@@ -224,7 +223,7 @@ pub struct Data {
 impl Data {
     pub fn generate_samples(n_samples: usize, n: usize, m: usize, seed: u64) -> Data {
         let mut samples = vec![];
-        let mut prng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let mut prng = Prng::seed_from_u64(seed);
         for sample_id in 1..=n_samples { 
             println!("generating sample {}", sample_id);
             let g = Graph::random_graph(n, m, &mut prng);

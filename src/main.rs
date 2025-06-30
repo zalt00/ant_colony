@@ -5,7 +5,19 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 use rand::{RngCore, SeedableRng};
 
-use crate::{aco2::ACO2, annealing::SA, config::{AntColonyProfile, Config, Profile}, graph::{print_counters, Graph, RootedTree}, graph_generator::{Data, GraphData}, greedy::greedy_ebc_delete_no_recompute, my_rand::{random_permutation, Prng}, neighborhood::VNS, utils::{test_segment_tree, TarjanSolver}};
+use crate::aco2::ACO2;
+use crate::annealing::SA;
+use crate::utils::{test_segment_tree, TarjanSolver};
+use crate::neighborhood::VNS;
+use crate::my_rand::{random_permutation, Prng};
+use crate::greedy::greedy_ebc_delete_no_recompute;
+use crate::graph_generator::{Data, GraphData};
+use crate::graph::print_counters;
+use crate::graph::RootedTree;
+use crate::graph::Graph;
+use crate::config::Profile;
+use crate::config::Config;
+use crate::config::AntColonyProfile;
 
 pub mod graph;
 pub mod my_rand;
@@ -18,7 +30,7 @@ pub mod neighborhood;
 pub mod annealing;
 pub mod trace;
 
-pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, w: f64) {
+pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
     assert!(g.is_connected());
