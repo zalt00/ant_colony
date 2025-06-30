@@ -7,6 +7,7 @@ use rand::{RngCore, SeedableRng};
 
 use crate::aco2::ACO2;
 use crate::annealing::SA;
+use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
 use crate::neighborhood::VNS;
 use crate::my_rand::{random_permutation, Prng};
@@ -87,6 +88,82 @@ pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
 
 }
 
+pub fn save_result(gdt: &GraphData, label: &str, d: f64, trace: Vec<TraceData>) {
+    let path = format!("{}_result-{}.json", gdt.label, label);
+    println!("Done. Saving results in \"{}\"\n", &path);
+    let mut file = File::create(&path).expect("bah");
+    serde_json::to_writer_pretty(&mut file, &TraceResult::new(d, trace)).expect("error");
+
+}
+
+pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
+    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+    let time_limit = if gdt.n > 500 {
+        5. * 60.
+    } else {
+        60.0
+    };
+
+    println!("Sample <{}>", gdt.label);
+
+    for mode in 0..3 {
+        let label = format!("vns_mode{}", mode);
+
+        println!("launching: <{}>", &label);
+        let mut vns = VNS::new(g.clone(), 1234 + 34*i + mode as u64, ebc.clone(), dm.clone(), mode);
+        let (d, t) = vns.gvns_random_start_nonapprox_timeout(time_limit);
+        save_result(gdt, &label, d, t);
+    }
+
+    let label = "aco";
+
+    println!("launching: <{}>", &label);
+
+    let max_tau = 80.0;
+    let min_tau = 0.2;
+    let tau_init = 76.;
+
+    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121 + 12*i, None, ebc.clone(), dm.clone());
+    let d = aco2.launch(1000000, 0.5, time_limit, 2.0);
+    save_result(gdt, &label, d.0, d.1);
+
+
+
+    let label = "aco_hybrid";
+
+    println!("launching: <{}>", &label);
+
+    let max_tau = 80.0;
+    let min_tau = 0.2;
+    let tau_init = 76.;
+
+    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121 + i, None, ebc.clone(), dm.clone());
+    aco2.vnd_hybrid = true;
+    let d = aco2.launch(1000000, 0.5, time_limit, 2.0);
+    save_result(gdt, &label, d.0, d.1);
+
+
+    let label = "beuh";
+
+    println!("launching: <{}>", &label);
+
+    let mut sa = SA::new(g.clone(), 1203 + 4*i, ebc.clone(), dm.clone());
+    let d = sa.beuh(time_limit);
+    save_result(gdt, &label, d.0, d.1);
+
+
+    let label = "greedy";
+
+    println!("launching: <{}>", &label);
+
+    let d = greedy_ebc_delete_no_recompute(&g, &ebc, &dm);
+    save_result(gdt, &label, d.0, vec![]);
+
+
+}
+
+
 
 
 fn main() {
@@ -119,6 +196,8 @@ fn main() {
         profiles.insert("clique-cycle".to_string(), Profile::CliqueCycle);
         
         profiles.insert("benchmark".to_string(), Profile::VNSFullTest);
+        profiles.insert("benchmark2".to_string(), Profile::Benchmark);
+
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
 
         profiles.insert(format!("vns-vs-aco"), Profile::VNSvsACO(
@@ -137,6 +216,42 @@ fn main() {
             println!("% launching profile <{}>:", mode);
 
             match profile {
+                Profile::Benchmark => {
+
+                    println!("loading samples...");
+                    let data = Data::load("data/graph-benchmark-samples.data");
+
+                    println!("Launching tests on random graphs:");
+
+                    for (i, gdt) in data.samples.iter().enumerate() {
+                        println!("{}/{}", i+1, data.n_samples);
+                        //test_with_multiple_algos(i as u64, gdt);
+                        println!("\n\n");
+                    }
+
+                    println!("Launching tests on clique cycles:");
+                    let mut prng = Prng::seed_from_u64(8989898);
+                    for (k, l) in [(30, 30), (10, 100), (100, 10)] {
+                        let n = k * l;
+                        let perm = random_permutation(n, &mut prng);
+                        let g = Graph::clique_cycle(k, l).renumber(&perm);
+                        let t = Graph::clique_cycle_mindisto_tree(k, l).renumber(&perm);
+                        let trooted = RootedTree::from_graph(&t, 0);
+
+                        let mut gdt = GraphData::from_graph(&g, false, false);
+                        let dm = g.get_dist_matrix();
+                        let d = trooted.distorsion(&dm);
+
+                        gdt.label = format!("data/clique_cycle{}-{}", k, l);
+
+                        save_result(&gdt, "exact", d, vec![]);
+
+                        test_with_multiple_algos(k as u64, &gdt);  
+                    }
+
+
+                },
+
                 Profile::AntColony(dt) => {
                     println!("loading samples...");
                     let data = Data::load("data/samples1000-20000.data");
@@ -208,11 +323,20 @@ fn main() {
                     let data = Data::load("data/samples1000-20000-2.data");
                     let gdt = &data.samples[0];
 
+                    println!("launching test: VNS");
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+                    let mut vns = VNS::new(g, 1203, ebc, dm, 0);
+                    let d = vns.gvns_random_start_nonapprox_timeout(60.0);
+
+                    println!("vns result: {}", d.0);
+
+
                     println!("launching test: Annealing");
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
                     let mut sa = SA::new(g, 1203, ebc, dm);
-                    let d = sa.launch(60.0);
+                    let d = sa.beuh(60.0);
                     println!("{}", d.0);
 
                     println!("launching test: ACO");
@@ -227,13 +351,7 @@ fn main() {
                     aco2.vnd_hybrid = true;
                     let d = aco2.launch(1000000, 0.5, 6.0, 2.0);
                     println!("d: {}", d.0);
-                    println!("launching test: VNS");
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut vns = VNS::new(g, 1203, ebc, dm);
-                    let d = vns.gvns_random_start_nonapprox_timeout(60.0);
-
-                    println!("vns result: {}", d.0);
                     print_counters();
 
                 },
@@ -263,7 +381,7 @@ fn main() {
                         println!("sample name: <{}>", gdt.label);
                         let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                        let mut vns = VNS::new(g, 1203, ebc, dm);
+                        let mut vns = VNS::new(g, 1203, ebc, dm, 0);
                         let d = vns.gvns_random_start_nonapprox_timeout(20.0);
 
                         println!("disto={}", d.0);
@@ -296,7 +414,7 @@ fn main() {
 
                     println!("disto: {}", rooted_tree.distorsion(&dm));
 
-                    let mut vns = VNS::new(g, 1203, ebc, dm);
+                    let mut vns = VNS::new(g, 1203, ebc, dm, 0);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
 
                     println!("computed disto: {}", d.0);

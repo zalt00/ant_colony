@@ -324,10 +324,18 @@ pub struct VNS {
 
 impl VNS {
 
-    pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> VNS {
+    pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode: usize) -> VNS {
         use NeighborhoodStrategies::*;
-        static NEIGHBORHOOD_STRATEGIES: [NeighborhoodStrategies; 3] = [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap];
-        static NEIGHBORHOOD_SAMPLE_SIZES: [usize; 3] = [25, 25, 40];
+        static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 3]; 3] = [
+            [EdgeSubtreeRelocation, CriticalPathSubtreeRelocation, EdgeSubtreeRelocation],
+            [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap],
+            [EdgeSubtreeRelocation, CriticalPathSubtreeRelocation, EdgeSwap]   
+        ];
+        static NEIGHBORHOOD_SAMPLE_SIZES: [[usize; 3]; 3] = [
+            [40, 25, 25],
+            [25, 25, 40],
+            [40, 25, 25]
+        ];
 
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
@@ -336,8 +344,8 @@ impl VNS {
 
         VNS { n, g, tree_buf: Graph::new_empty(n),
             tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
-            k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES,
-            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES, dist_matrix }
+            k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
+            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix }
 
 
     }
@@ -481,7 +489,7 @@ impl VNS {
                     self.k += 1
                 }
             }
-            println!("dist approx: {}, disto {}", xdist, x_real_dist);
+            // println!("dist approx: {}, disto {}", xdist, x_real_dist);
 
         }
 

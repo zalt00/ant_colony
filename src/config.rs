@@ -23,7 +23,9 @@ pub enum Profile {
 
     VNSFullTest,
 
-    CliqueCycle
+    CliqueCycle,
+
+    Benchmark
 }
 
 #[derive(Serialize, Deserialize)]

@@ -201,7 +201,7 @@ impl ACO2 {
         let mut cur_best_disto;
 
         let mut vns = if self.vnd_hybrid {
-            Some(VNS::new(self.g.clone(), 1213, self.edge_betweeness_centrality.clone(), self.dist_matrix.clone()))
+            Some(VNS::new(self.g.clone(), 1213, self.edge_betweeness_centrality.clone(), self.dist_matrix.clone(), 0))
         } else {
             None
         };

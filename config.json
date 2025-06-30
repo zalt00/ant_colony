@@ -1,7 +1,18 @@
 {
   "profiles": {
-    "ntest1": "NeighborhoodTest",
     "clique-cycle": "CliqueCycle",
+    "benchmark2": "Benchmark",
+    "ntest1": "NeighborhoodTest",
+    "vns-vs-aco": {
+      "VNSvsACO": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 123,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
     "benchmark": "VNSFullTest",
     "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
@@ -9,16 +20,6 @@
         "c": 8000.0,
         "evap": 0.4,
         "seed": 121,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    },
-    "vns-vs-aco": {
-      "VNSvsACO": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 123,
         "w": 0.5,
         "k": 10,
         "ic": 600

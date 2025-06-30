@@ -89,7 +89,7 @@ impl SA {
 
         let now = Instant::now();
 
-        let step = 1.0/50.0;
+        let step = 1.0/2.0;
 
         let mut cur_approx_tree = self.g.random_subtree(&mut self.prng);
 
@@ -117,7 +117,7 @@ impl SA {
                     cur_disto_approx = ydist;
                 } else {
                     let r = my_rand(&mut self.prng);
-                    let proba = (-self.temperature.recip() * self.coef).exp();
+                    let proba = 0.0;// (-self.temperature.recip() * self.coef).exp();
                     //println!("proba: {} temperature; {}", proba, self.temperature);
                     if r <= proba {
                         //println!("uphill {} {}", cur_disto_approx, ydist);
@@ -141,13 +141,66 @@ impl SA {
             cur_approx_tree = best_approx_tree.clone();
             cur_disto_approx = best_disto_approx;
 
-            println!("elapsed: {}", elapsed.as_secs_f64());
+            //println!("elapsed: {}", elapsed.as_secs_f64());
 
         }
         let d = best_approx_tree.distorsion(&self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
         (d, trace)
     }
+
+    pub fn beuh(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
+        let mut best_disto_approx = f64::INFINITY;
+        let mut best_approx_tree = RootedTree::new(self.n, 0);
+        let mut cur_disto_approx = f64::INFINITY;
+
+        let now = Instant::now();
+
+        let mut cur_approx_tree = self.g.random_subtree(&mut self.prng);
+
+        let mut elapsed;
+        let mut trace: Vec<TraceData> = Vec::new();
+
+        let mut iter_id = 0;
+
+        while {elapsed = now.elapsed(); elapsed}.as_secs_f64() < time_limit {
+            let dist_previous = best_disto_approx;
+            for _ in 0..2 {
+                self.init_strategy(&mut cur_approx_tree, self.k);
+                let y = self.get_neighbor(&mut cur_approx_tree, self.k);
+                //y.recompute_depths_rec(y.root, 0);
+                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+
+                if ydist < best_disto_approx {
+                    best_approx_tree = y.clone();
+                    best_disto_approx = ydist;
+                }
+
+                if ydist < cur_disto_approx {
+                    cur_approx_tree = y;
+                    cur_disto_approx = ydist;
+                }
+
+            }
+
+            if best_disto_approx < dist_previous {
+                self.k = 0;
+                //println!("ydist: {}, k: {}", best_disto_approx, self.k);
+
+            } else {
+                self.k = (self.k + 1).min(self.neighborhood_strategies.len() - 1);
+            }
+            iter_id += 1;
+
+            //println!("elapsed: {}", elapsed.as_secs_f64());
+
+        }
+        let d = best_approx_tree.distorsion(&self.dist_matrix);
+        trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
+        (d, trace)
+    }
+
+
 }
 
 
