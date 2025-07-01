@@ -1,19 +1,7 @@
 {
   "profiles": {
     "clique-cycle": "CliqueCycle",
-    "benchmark2": "Benchmark",
     "ntest1": "NeighborhoodTest",
-    "vns-vs-aco": {
-      "VNSvsACO": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 123,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    },
-    "benchmark": "VNSFullTest",
     "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
@@ -34,6 +22,18 @@
         "k": 10,
         "ic": 600
       }
-    }
+    },
+    "benchmark": "VNSFullTest",
+    "vns-vs-aco": {
+      "VNSvsACO": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 123,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
+    "benchmark2": "Benchmark"
   }
 }

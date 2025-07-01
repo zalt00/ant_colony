@@ -100,14 +100,14 @@ pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
     let time_limit = if gdt.n > 500 {
-        5. * 60.
+        10. * 60.
     } else {
         60.0
     };
 
     println!("Sample <{}>", gdt.label);
 
-    for mode in 0..3 {
+    for mode in 0..0 {
         let label = format!("vns_mode{}", mode);
 
         println!("launching: <{}>", &label);
@@ -211,21 +211,27 @@ fn main() {
     } else {
 
         let cfg: Config = serde_json::from_reader(File::open("config.json").expect("wee")).expect("waa");
-
+        
         if let Some(profile) = cfg.profiles.get(mode) {
             println!("% launching profile <{}>:", mode);
 
             match profile {
                 Profile::Benchmark => {
 
+
+
                     println!("loading samples...");
                     let data = Data::load("data/graph-benchmark-samples.data");
 
+                    
+                    test_with_multiple_algos(5 as u64, &data.samples[5]);
+
+                    
                     println!("Launching tests on random graphs:");
 
                     for (i, gdt) in data.samples.iter().enumerate() {
                         println!("{}/{}", i+1, data.n_samples);
-                        //test_with_multiple_algos(i as u64, gdt);
+                        test_with_multiple_algos(i as u64, gdt);
                         println!("\n\n");
                     }
 

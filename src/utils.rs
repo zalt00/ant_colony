@@ -9,6 +9,10 @@ impl SegmentTree {
         SegmentTree(vec![0.0; size])
     }
 
+    pub fn get_leaves(&self) -> &[f64] {
+        &self.0[self.intern_node_count()..]
+    }
+
     pub const fn size(&self) -> usize {
         self.0.len()
     }
@@ -49,6 +53,11 @@ impl SegmentTree {
         }
     }
 
+    pub fn get(&self, v: usize) -> f64 {
+        let vi = v + self.intern_node_count();
+        self.0[vi]
+    }
+
     fn _smallest_above_from(&self, vi: usize, val: f64) -> usize {
         //println!("{} {}", vi, val);
         let children_count = self.children_count(vi);
@@ -73,6 +82,10 @@ impl SegmentTree {
 
     pub fn smallest_above(&self, val: f64) -> usize {
         self._smallest_above_from(0, val) - self.intern_node_count()
+    }
+
+    pub fn reset(&mut self) {
+        self.0.fill(0.0);
     }
 }
 
@@ -172,7 +185,16 @@ impl TarjanSolver {
         for v in tree.get_children(u) {
             self._launch_from(*v, tree, g);
             self.uf.union(u, *v);
-            self.ancestors[self.uf.find(u).unwrap() as usize] = u;
+            if let Some(c) = self.uf.find(u) {
+                self.ancestors[c as usize] = u;
+            } else {
+                // welp
+                println!("uf: {:?}", self.uf.0);
+                println!("\n\n");
+                println!("{} {}", u, *v);
+
+                panic!()
+            }
         }
         self.mark[u] = true;
 

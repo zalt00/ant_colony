@@ -15,6 +15,7 @@ glob = "*"
 
 [profile.release]
 debug = false
+overflow-checks = true
 
 [features]
 no_distorsion_approx = []

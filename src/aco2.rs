@@ -95,22 +95,21 @@ impl ACO2 {
             self.adj_set[ei] = true;
         }
 
+        self.tau_sg.reset();
+
         for &[u, v] in &self.edges {
             debug_assert!(u < v);
             let emati = u + self.n * v;
             let ei = self.edge_to_index[emati];
             if self.adj_set[ei] {
                 self.tau_sg.update(ei, self.tau_matrix[emati]);
-            } else {
-                self.tau_sg.update(ei, 0.0);
             }
         }
         r
     }
 
-    pub fn get_edge(&mut self) -> usize {
+    pub fn get_edge(&mut self, rho: f64) -> usize {
         let s = self.tau_sg.global_sum();
-        let rho = my_rand(&mut self.prng);
 
         self.tau_sg.smallest_above(rho * s)
     }
@@ -255,24 +254,41 @@ impl ACO2 {
                 let _r = self.reset_state();
 
                 for _ in 0..(self.n-2) {
-                    let ei = self.get_edge();
+                    let rho = my_rand(&mut self.prng);
+                    let ei = self.get_edge(rho);
 
                     let e = self.edges[ei];
 
-                    debug_assert_ne!(self.covered_vertices[e[0]], self.covered_vertices[e[1]]);
+                    // assert_ne!(self.covered_vertices[e[0]], self.covered_vertices[e[1]]);
 
                     let (u, parent) =
                         if self.covered_vertices[e[0]] {(e[1], e[0])} else {(e[0], e[1])};
                     
+                    if self.tree.depths[parent] > 10000 {
+                        println!("{}", self.adj_set[ei]);
+                        
+                        println!("proba: {}", self.tau_sg.get(ei));
+                        println!("{}", self.tau_sg.global_sum());
+                        println!("{}", rho);
+                        println!("{} {}", parent, u);
+                        println!("{}, {}", ei, self.edges.len());
+                        println!("{:?}", &self.tau_sg.get_leaves()[ei-50..ei+50]);
+                        panic!()
+                    }
+
+
+
                     self.update_adjset(u);
                     self.covered_vertices[u] = true;
+
+
                     self.tree.add_child(parent, u);
 
                 }
-
-                let ei = self.get_edge();
+                let rho = my_rand(&mut self.prng);
+                let ei = self.get_edge(rho);
                 let e = self.edges[ei];
-                debug_assert_ne!(self.covered_vertices[e[0]], self.covered_vertices[e[1]]);
+                assert_ne!(self.covered_vertices[e[0]], self.covered_vertices[e[1]]);
                 let (u, parent) =
                     if self.covered_vertices[e[0]] {(e[1], e[0])} else {(e[0], e[1])};
                 self.covered_vertices[u] = true;

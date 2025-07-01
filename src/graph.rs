@@ -324,7 +324,14 @@ impl RootedTree {
     pub fn add_child(&mut self, parent: usize, child: usize) {
         // note: parent doit avoir ete ajoute auparavant
         self.children[parent].push(child);
-        self.depths[child] = self.depths[parent] + 1;
+        self.depths[child] = if let Some(val) = self.depths[parent].checked_add(1) {
+            val
+        } else {
+            println!("{} {}", parent, child);
+            println!("{:?}", self.depths);
+            println!("\n{:?}", self.children);
+            panic!()
+        }
     }
 
     pub fn recompute_depths_rec(&mut self, u: usize, d: usize) {
