@@ -192,7 +192,7 @@ impl TarjanSolver {
                 println!("uf: {:?}", self.uf.0);
                 println!("\n\n");
                 println!("{} {}", u, *v);
-
+                
                 panic!()
             }
         }

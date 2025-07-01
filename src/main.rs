@@ -223,7 +223,16 @@ fn main() {
                     println!("loading samples...");
                     let data = Data::load("data/graph-benchmark-samples.data");
 
-                    
+                    let gdt = &data.samples[6];
+                    let mut per_distances = [0; 10];
+
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+
+                    println!("{}", &gdt.label);
+                    println!("max dist: {}", dm.iter().max().unwrap());
+                    println!("mean dist: {}", dm.iter().map(|x| {*x as f64}).sum::<f64>() / dm.len() as f64);
+                    dm.iter().for_each(|x| {per_distances[*x as usize] += 1});
+                    println!("{:?}", per_distances);
                     test_with_multiple_algos(5 as u64, &data.samples[5]);
 
                     

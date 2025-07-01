@@ -1,0 +1,39 @@
+Précalcul: 
+    - size_sum[u, i..j] correspond a sum(size[children[u][k]] pour k dans i..j)
+    - sd[u] la somme des profondeurs des noeuds de l'arbre enraciné en u
+    - sd_sum[u, i..j]
+
+
+Fonction s22:
+    Entrée:
+        - noeud u
+    
+    Sortie:
+        - la somme des distances entre chaque paire de sommets dans le sous arbre enraciné en u
+
+    Renvoyer sd_sum[..] + size[u] - 1 + s22_aux(children[u])
+
+
+Fonction s22_aux:
+    Entrée:
+        - un noeud u
+        - un intervalle i..j
+
+    Sortie:
+        - la somme des distances entre chaque paire de sommets dans l'union des arbres enracinés
+        en les noeuds de children[u][i..j]
+
+    si j - i == 1:
+        Renvoyer s22(children[u][i])
+    sinon:
+        k = (j + i) / 2
+
+        Renvoyer
+            s22_aux(u, i..k) + s22_aux(u, k+1..j) +
+
+            size_sum[..k]   * sd_sum[k+1..] +
+            size_sum[k+1..] * sd_sum[..k]
+
+
+
+
