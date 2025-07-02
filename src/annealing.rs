@@ -104,7 +104,7 @@ impl SA {
                 self.init_strategy(&mut cur_approx_tree, self.k);
                 let y = self.get_neighbor(&mut cur_approx_tree, self.k);
                 //y.recompute_depths_rec(y.root, 0);
-                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+                let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
                 if ydist < best_disto_approx {
                     best_approx_tree = y.clone();
@@ -169,7 +169,7 @@ impl SA {
                 self.init_strategy(&mut cur_approx_tree, self.k);
                 let y = self.get_neighbor(&mut cur_approx_tree, self.k);
                 //y.recompute_depths_rec(y.root, 0);
-                let ydist = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+                let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
                 if ydist < best_disto_approx {
                     best_approx_tree = y.clone();

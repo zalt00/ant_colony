@@ -209,7 +209,7 @@ impl ACO2 {
         if let Some(t) = &self.base_tree {
             cur_best_tree = t.clone();
             cur_best_disto = cur_best_tree
-                .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                .heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
                 &self.dist_matrix);
         } else {
             cur_best_tree = RootedTree::new(self.n, 0);
@@ -238,7 +238,7 @@ impl ACO2 {
                     } else {
                         cur_best_tree = tot_best_tree.clone();
                         cur_best_disto = tot_best_tree
-                        .disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
+                        .heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
                         &self.dist_matrix);
                     }
 
@@ -300,7 +300,7 @@ impl ACO2 {
                 
 
                 let disto_approx = if self.vnd_hybrid {
-                    let d = self.tree.disto_approx(&self.g,
+                    let d = self.tree.heuristic(&self.g,
                         &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
                     &self.dist_matrix);
 
@@ -308,7 +308,7 @@ impl ACO2 {
                     self.tree = tree2;
                     d2
                 } else {
-                    self.tree.disto_approx(&self.g,
+                    self.tree.heuristic(&self.g,
                         &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality,
                     &self.dist_matrix)
                 };

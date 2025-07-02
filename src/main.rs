@@ -231,12 +231,63 @@ fn main() {
 
                     println!("loading samples...");
                     let data = Data::load("data/graph-benchmark-samples.data");
-                    let mut prng = Prng::seed_from_u64(1111);
+                    let mut prng = Prng::seed_from_u64(1671);
+
+
+                    let g = Graph::random_graph(1000, 10000, &mut prng);
+                    let dm = g.get_dist_matrix();
+
+                    let mut dists = [0_u32; 10];
+                    let mut d_mean = 0.0;
+                    let mut d_max = 0;
+                    for v in dm.iter() {
+                        dists[*v as usize] += 1;
+                    }
+
+                    for v in 0..g.n {
+                        let deg = g.get_neighboor_count_unchecked(v as usize);
+                        d_max = d_max.max(deg);
+                        d_mean += deg as f64 / g.n as f64;
+                    }
+
+                    println!("{} {}", d_max, d_mean);
+                    println!("{:?}", dists);
+
+
+                    let s: u32 = dm.iter().sum();
+                    let m = s as f64 / g.n as f64 / (g.n - 1) as f64;
+                    println!("{}", m);
+
+                    let mut rm = 0.0;
+                    let mut rmax: f64 = 0.0;
+                    let p = 0.37480394605905987;
+                    for _ in 0..10 {
+                        let t = g.random_subtree(&mut prng);
+                        let dhu = t.new_disto_approx();
+                        let d = t.distorsion(&dm);
+
+                        let dh = dhu as f64 / (g.n as f64 * (g.n - 1) as f64) / m * 2.0;// * 1.0537940243214428; 
+                        
+                        let adh2 = dhu as f64 / (g.n as f64 * (g.n - 1) as f64) * 2.0;
+                        let dh2 = adh2 / 3.0 + adh2 *p / (2.0 * 3.0);
+                        
+                        let rh = d / dh2;
+                        println!("{} {} {}", rh, dh, d);
+                        rm += dh2 / d;
+                        rmax = rmax.max((d - dh).abs() / d); 
+                    }
+
+                    println!("{}% {}%" , rm / 10.0 * 100.0, rmax * 100.0);
+                    
+
 
                     let gdt = &data.samples[6];
-                    //let g = Graph::random_graph(10000, 100000, &mut prng);
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
                     println!("label={}", gdt.label);
+
+                    // let t = g.random_subtree(&mut prng);
+                    // println!("{}", t.new_disto_approx());
+                    // println!("{}", t.s22_slow());
 
                     let mut vns = VNS::new(g, 123, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
@@ -327,8 +378,8 @@ fn main() {
                     for _ in 0..1000 {
                         let t1 = g.random_subtree(&mut prng);
                         let t2 = g.random_subtree(&mut prng);
-                        let da1 = t1.disto_approx(&g, edges, tarjan_solver, &ebc, &vec![]);
-                        let da2 = t2.disto_approx(&g, edges, tarjan_solver, &ebc, &vec![]);
+                        let da1 = t1.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
+                        let da2 = t2.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
 
                         let d1 = t1.distorsion(&dm);
                         let d2 = t2.distorsion(&dm);
