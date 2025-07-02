@@ -1,3 +1,4 @@
+use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
@@ -30,6 +31,8 @@ pub mod config;
 pub mod neighborhood;
 pub mod annealing;
 pub mod trace;
+pub mod distorsion_heuristics;
+pub mod counters;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
@@ -157,7 +160,14 @@ pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
 
     println!("launching: <{}>", &label);
 
-    let d = greedy_ebc_delete_no_recompute(&g, &ebc, &dm);
+    let ebc2 = if cfg!(not(feature = "need_ebc")) {
+        println!("compute ebc for greedy..");
+        &g.get_edge_betweeness_centrality()
+    } else {
+        &ebc
+    };
+
+    let d = greedy_ebc_delete_no_recompute(&g, ebc2, &dm);
     save_result(gdt, &label, d.0, vec![]);
 
 
@@ -199,6 +209,7 @@ fn main() {
         profiles.insert("benchmark2".to_string(), Profile::Benchmark);
 
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
+        profiles.insert("new_dist_approx".to_string(), Profile::NewDistoApprox);
 
         profiles.insert(format!("vns-vs-aco"), Profile::VNSvsACO(
             AntColonyProfile {c: 8000.0, evap: 0.4, seed: 123, w: 0.5, k: 10, ic: 600}
@@ -216,6 +227,29 @@ fn main() {
             println!("% launching profile <{}>:", mode);
 
             match profile {
+                Profile::NewDistoApprox => {
+
+                    println!("loading samples...");
+                    let data = Data::load("data/graph-benchmark-samples.data");
+                    let mut prng = Prng::seed_from_u64(1111);
+
+                    let gdt = &data.samples[6];
+                    //let g = Graph::random_graph(10000, 100000, &mut prng);
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    println!("label={}", gdt.label);
+
+                    let mut vns = VNS::new(g, 123, ebc, dm, 2);
+                    let d = vns.gvns_random_start_nonapprox_timeout(20.0);
+                    
+                    println!("{}", d.0);
+                    counters::print_counters();
+                    //g.to_dot("tree.dot");
+                    //std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
+
+                    //t.to_graph().to_dot("tree2.dot");
+                    //std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
+                },
+
                 Profile::Benchmark => {
 
 
@@ -226,7 +260,7 @@ fn main() {
                     let gdt = &data.samples[6];
                     let mut per_distances = [0; 10];
 
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    let (_g, _ebc, dm) = gdt.graph_ebc_dist_matrix();
 
                     println!("{}", &gdt.label);
                     println!("max dist: {}", dm.iter().max().unwrap());

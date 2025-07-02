@@ -331,6 +331,33 @@ impl GraphData {
         let ebc = if let Some(ebc) = &self.ebc {
             ebc.clone()
         } else {
+            if cfg!(feature = "need_ebc") {
+                println!("compute ebc");
+                g.get_edge_betweeness_centrality()
+            } else {
+                println!("ignore ebc computation");
+                vec![]
+            }
+        };
+
+        let dm = if let Some(dm) = &self.dist_matrix {
+            dm.clone()
+        } else {
+            println!("compute dm");
+            g.get_dist_matrix()
+
+        };
+
+        (g, ebc, dm)
+
+    }
+
+    pub fn graph_ebc_dist_matrix_force(&self) -> (Graph, Vec<f64>, Vec<u32>) {
+        let g = self.to_graph();
+
+        let ebc = if let Some(ebc) = &self.ebc {
+            ebc.clone()
+        } else {
             println!("compute ebc");
             g.get_edge_betweeness_centrality()
         };
@@ -345,6 +372,18 @@ impl GraphData {
 
     }
 
+
+    pub fn graph_dist_matri(&self) -> (Graph, Vec<u32>) {
+        let g = self.to_graph();
+
+        let dm = if let Some(dm) = &self.dist_matrix {
+            dm.clone()
+        } else {
+            g.get_dist_matrix()
+        };
+
+        (g, dm)
+    }
 
 }
 

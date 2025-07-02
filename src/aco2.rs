@@ -3,6 +3,7 @@ use core::f64;
 use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
+use crate::distorsion_heuristics::{constants, Num};
 use crate::my_rand::Prng;
 
 use crate::neighborhood::VNS;
@@ -42,7 +43,7 @@ pub struct ACO2 {
     base_tree: Option<RootedTree>,
 
     dist_matrix: Vec<u32>,
-    pub trace: Vec<f64>,
+    pub trace: Vec<Num>,
 
     pub vnd_hybrid: bool
 }
@@ -212,7 +213,7 @@ impl ACO2 {
                 &self.dist_matrix);
         } else {
             cur_best_tree = RootedTree::new(self.n, 0);
-            cur_best_disto = f64::INFINITY;
+            cur_best_disto = constants::INF;
         }
 
         let mut recheck_count = 0;
@@ -247,7 +248,7 @@ impl ACO2 {
             }
 
             
-            let mut iter_best_disto = f64::INFINITY;
+            let mut iter_best_disto = constants::INF;
             let mut iter_best_tree = RootedTree::new(self.n, 0);
 
             for _ant_id in 1..=self.k {

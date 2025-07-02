@@ -11,7 +11,7 @@ Fonction s22:
     Sortie:
         - la somme des distances entre chaque paire de sommets dans le sous arbre enraciné en u
 
-    Renvoyer sd_sum[..] + size[u] - 1 + s22_aux(children[u])
+    Renvoyer sd_sum[u, ..] + size[u] - 1 + s22_aux(children[u])
 
 
 Fonction s22_aux:
@@ -29,10 +29,11 @@ Fonction s22_aux:
         k = (j + i) / 2
 
         Renvoyer
-            s22_aux(u, i..k) + s22_aux(u, k+1..j) +
+            s22_aux(u, i..k) + s22_aux(u, k..j) +
 
-            size_sum[..k]   * sd_sum[k+1..] +
-            size_sum[k+1..] * sd_sum[..k]
+            (size_sum[u, i..k] )   * sd_sum[u, k..j] +
+            (size_sum[u, k..j] )   * sd_sum[u, i..k] +
+            2 * size_sum[u, i..k] * size_sum[u, k..j] 
 
 
 

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
-use crate::{graph::{Graph, RootedTree, N}, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
+use crate::{counters, distorsion_heuristics::{constants, Num}, graph::{Graph, RootedTree, N}, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
 
 
 impl RootedTree {
@@ -363,6 +363,7 @@ impl VNS {
 
     pub fn get_neighbor(&mut self, x: &mut RootedTree, i: usize) -> RootedTree {
         // /!\ appeler init_strategy avant
+        counters::incr(1);
 
         use NeighborhoodStrategies::*;
         match self.neighborhood_strategies[i] {
@@ -385,7 +386,7 @@ impl VNS {
         }
     }
 
-    pub fn improve(&mut self, mut x: RootedTree, mut xdist: f64, i: usize) -> (RootedTree, f64) {
+    pub fn improve(&mut self, mut x: RootedTree, mut xdist: Num, i: usize) -> (RootedTree, Num) {
         // pour le moment: best improvement repetee jusqu'a ne plus avoir d'improvement
 
         self.init_strategy(&mut x, i);
@@ -397,7 +398,7 @@ impl VNS {
             keep_going = false;
 
             let mut iter_best_tree = RootedTree::new(self.n, 0);
-            let mut iter_best_disto = f64::INFINITY;
+            let mut iter_best_disto = constants::INF;
             for _sample_id in 0..self.neighborhood_sample_sizes[i] {
                 let y = self.get_neighbor(&mut x, i);
                 let disty = y.disto_approx(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
@@ -419,7 +420,7 @@ impl VNS {
 
     }
 
-    pub fn vnd(&mut self, mut x: RootedTree, mut xdist: f64) -> (RootedTree, f64) {
+    pub fn vnd(&mut self, mut x: RootedTree, mut xdist: Num) -> (RootedTree, Num) {
         self.l = 0;
         while self.l < self.neighborhood_strategies.len() {
             let xdist_previous = xdist;
@@ -435,7 +436,7 @@ impl VNS {
         (x, xdist)
     }
 
-    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: f64, niter: usize, time_limit: f64) -> (RootedTree, f64, f64, Vec<TraceData>) {
+    pub fn gvns(&mut self, mut x: RootedTree, mut xdist: Num, niter: usize, time_limit: f64) -> (RootedTree, Num, f64, Vec<TraceData>) {
 
         let mut x_real_dist = f64::INFINITY;
         let has_time_limit = time_limit >= 0.0;
@@ -489,7 +490,7 @@ impl VNS {
                     self.k += 1
                 }
             }
-            // println!("dist approx: {}, disto {}", xdist, x_real_dist);
+            if cfg!(feature="verbose") {println!("dist approx: {}, disto {}", xdist, x_real_dist)};
 
         }
 

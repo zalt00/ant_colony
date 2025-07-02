@@ -4,10 +4,8 @@ use std::{fmt::Debug, u32};
 use rustworkx_core::petgraph;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::utils::TarjanSolver;
 
-
-pub const N: usize = 10000;
+pub const N: usize = 50000;
 
 pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
     let mut s= String::new();
@@ -234,6 +232,19 @@ impl Graph {
         s / self.n as f64 / (self.n-1) as f64
     }
 
+    pub fn s22_slow(&self, dist_matrix: &mut Vec<u32>) -> f64 {
+        self.update_dist_matrix(dist_matrix);   
+
+        let mut s = 0;
+        for i in 0..(self.n-1) {
+            for j in (i+1)..self.n {
+                s += dist_matrix[i + self.n * j] as u64;
+            }
+
+        }
+        s as f64
+    }
+
     pub fn distorsion_approx0(&mut self, dist_matrix: &mut Vec<u32>, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
         self.update_dist_matrix(dist_matrix);   
         let mut s = 0.0;
@@ -295,6 +306,8 @@ impl Graph {
 
         s as f64 / c as f64
     }
+    
+
 
 }
 
@@ -405,68 +418,6 @@ impl RootedTree {
         }
         dfs(root, g, &mut visited, &mut tree);
         tree
-    }
-
-
-    #[cfg(all(not(feature = "distorsion_approx_no_ebc"), not(feature="no_distorsion_approx")))]
-    pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
-            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>, _dm: &Vec<u32>) -> f64 {
-
-        let lca = tarjan_solver.launch(self, g);
-
-        let mut s = 0.0;
-
-        for &[u, v] in edges {
-            let i = u + self.n * v;
-            s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64 * ebc[i];
-        }
-        
-        // let ans = s / self.n as f64 / (self.n - 1) as f64;
-        // if ans >10000.0 {
-        //     println!("{}", self.to_graph().is_connected());
-
-        //     panic!()
-        // }
-
-        s / self.n as f64 / (self.n - 1) as f64
-    }
-
-    #[cfg(feature = "distorsion_approx_no_ebc")]
-    pub fn disto_approx(&self, g: &Graph, edges: &Vec<[usize; 2]>,
-            tarjan_solver: &mut TarjanSolver, ebc: &Vec<f64>, _dm: &Vec<u32>) -> f64 {
-
-        let lca = tarjan_solver.launch(self, g);
-
-        let mut s = 0.0;
-
-        for &[u, v] in edges {
-            let i = u + self.n * v;
-            s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64;
-        }
-
-
-        s / self.n as f64 / (self.n - 1) as f64
-    }
-
-    #[cfg(feature = "no_distorsion_approx")]
-    pub fn disto_approx(&self, _g: &Graph, _edges: &Vec<[usize; 2]>,
-            _tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, dm: &Vec<u32>) -> f64 {
-
-        let mut t = self.to_graph();
-
-        t.distorsion(&mut t.get_dist_matrix(), &dm)
-    }
-
-    pub fn slow_disto_approx(&self, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
-        let mut t = self.to_graph();
-
-        t.distorsion_approx(&mut t.get_dist_matrix(), edges, ebc)
-    }
-
-    pub fn distorsion(&self, dm: &Vec<u32>) -> f64 {
-        let mut t = self.to_graph();
-
-        t.distorsion(&mut t.get_dist_matrix(), &dm)
     }
 
 }

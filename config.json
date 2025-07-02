@@ -1,8 +1,6 @@
 {
   "profiles": {
-    "clique-cycle": "CliqueCycle",
     "ntest1": "NeighborhoodTest",
-    "disto_approx": "DistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
         "c": 8000.0,
@@ -13,6 +11,8 @@
         "ic": 600
       }
     },
+    "benchmark2": "Benchmark",
+    "new_dist_approx": "NewDistoApprox",
     "ac-c8000-evap0.4-w0.5-seed143": {
       "AntColony": {
         "c": 8000.0,
@@ -23,7 +23,6 @@
         "ic": 600
       }
     },
-    "benchmark": "VNSFullTest",
     "vns-vs-aco": {
       "VNSvsACO": {
         "c": 8000.0,
@@ -34,6 +33,8 @@
         "ic": 600
       }
     },
-    "benchmark2": "Benchmark"
+    "clique-cycle": "CliqueCycle",
+    "disto_approx": "DistoApprox",
+    "benchmark": "VNSFullTest"
   }
 }

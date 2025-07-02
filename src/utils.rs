@@ -171,8 +171,15 @@ pub struct TarjanSolver {
 }
 
 impl TarjanSolver {
+
+    #[cfg(feature = "need_tarjan")]
     pub fn new(n: usize) -> TarjanSolver {
         TarjanSolver { n, uf: Uf::init(n), mark: vec![false; n], ancestors: vec![0; n], results: vec![0; n*n] }
+    }
+
+    #[cfg(not(feature = "need_tarjan"))]
+    pub fn new(n: usize) -> TarjanSolver {
+        TarjanSolver { n, uf: Uf::init(0), mark: vec![], ancestors: vec![], results: vec![] }
     }
 
     fn reset(&mut self) {
@@ -208,6 +215,8 @@ impl TarjanSolver {
     }
 
     pub fn launch(&mut self, tree: &RootedTree, g: &Graph) -> &Vec<usize> {
+        if cfg!(not(feature = "need_tarjan")) {panic!()};
+
         self.reset();
         self._launch_from(tree.get_root(), tree, g);
 

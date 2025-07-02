@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 
-use crate::{graph::{Graph, RootedTree}, my_rand::{my_rand, Prng}, neighborhood::NeighborhoodStrategies, trace::TraceData, utils::TarjanSolver};
+use crate::{distorsion_heuristics::constants, graph::{Graph, RootedTree}, my_rand::{my_rand, Prng}, neighborhood::NeighborhoodStrategies, trace::TraceData, utils::TarjanSolver};
 
 
 
@@ -23,7 +23,7 @@ pub struct SA {
     neighborhood_strategies: &'static [NeighborhoodStrategies],
 
     temperature: f64,
-    coef: f64,
+    _coef: f64,
 
 
     dist_matrix: Vec<u32>
@@ -41,7 +41,7 @@ impl SA {
 
         SA { n, g, tree_buf: Graph::new_empty(n),
             tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
-            k: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES, temperature: 1.0, coef: 1.,
+            k: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES, temperature: 1.0, _coef: 1.,
             dist_matrix }
 
 
@@ -83,9 +83,9 @@ impl SA {
 
 
     pub fn launch(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
-        let mut best_disto_approx = f64::INFINITY;
+        let mut best_disto_approx = constants::INF;
         let mut best_approx_tree = RootedTree::new(self.n, 0);
-        let mut cur_disto_approx = f64::INFINITY;
+        let mut cur_disto_approx = constants::INF;
 
         let now = Instant::now();
 
@@ -150,9 +150,9 @@ impl SA {
     }
 
     pub fn beuh(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
-        let mut best_disto_approx = f64::INFINITY;
+        let mut best_disto_approx = constants::INF;
         let mut best_approx_tree = RootedTree::new(self.n, 0);
-        let mut cur_disto_approx = f64::INFINITY;
+        let mut cur_disto_approx = constants::INF;
 
         let now = Instant::now();
 

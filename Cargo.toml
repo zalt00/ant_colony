@@ -14,11 +14,17 @@ bincode = "*"
 glob = "*"
 
 [profile.release]
-debug = false
-overflow-checks = true
+debug = true
+overflow-checks = false
 
 [features]
-no_distorsion_approx = []
-distorsion_approx = []
-distorsion_approx_no_ebc = []
+default = []
+use_heuristic = []
+need_ebc = []
+need_tarjan = []
+ebc_stretch_heuristic = ["use_heuristic", "need_ebc", "need_tarjan"]
+stretch_heuristic = ["use_heuristic", "need_tarjan"]
+mean_path_heuristic = ["use_heuristic"]
+verbose = []
+enable_counters = []
 

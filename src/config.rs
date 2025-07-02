@@ -25,7 +25,9 @@ pub enum Profile {
 
     CliqueCycle,
 
-    Benchmark
+    Benchmark,
+
+    NewDistoApprox
 }
 
 #[derive(Serialize, Deserialize)]
