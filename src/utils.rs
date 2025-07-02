@@ -1,5 +1,5 @@
 
-use crate::graph::{Graph, RootedTree};
+use crate::{graph::{MatGraph, RootedTree}, graph_core::GraphCore as _};
 
 pub struct SegmentTree (Vec<f64>);
 
@@ -187,7 +187,7 @@ impl TarjanSolver {
         self.mark.fill(false);
     }
 
-    fn _launch_from(&mut self, u: usize, tree: &RootedTree, g: &Graph) {
+    fn _launch_from(&mut self, u: usize, tree: &RootedTree, g: &MatGraph) {
         self.ancestors[u] = u;
         for v in tree.get_children(u) {
             self._launch_from(*v, tree, g);
@@ -214,7 +214,7 @@ impl TarjanSolver {
         }
     }
 
-    pub fn launch(&mut self, tree: &RootedTree, g: &Graph) -> &Vec<usize> {
+    pub fn launch(&mut self, tree: &RootedTree, g: &MatGraph) -> &Vec<usize> {
         if cfg!(not(feature = "need_tarjan")) {panic!()};
 
         self.reset();

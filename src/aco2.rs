@@ -4,17 +4,19 @@ use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 use crate::distorsion_heuristics::{constants, Num};
+use crate::graph_core::GraphCore;
+use crate::graph_generator::GraphRng;
 use crate::my_rand::Prng;
 
 use crate::neighborhood::VNS;
 use crate::trace::TraceData;
 use crate::utils::{SegmentTree, TarjanSolver};
-use crate::{graph::{Graph, RootedTree}, my_rand::my_rand};
+use crate::{graph::{MatGraph, RootedTree}, my_rand::my_rand};
 
 
-pub struct ACO2 {
+pub struct ACO2<T: GraphCore+GraphRng> {
     n: usize,
-    g: Graph,
+    g: T,
     tree: RootedTree,
 
     tau_matrix: Vec<f64>,
@@ -48,11 +50,11 @@ pub struct ACO2 {
     pub vnd_hybrid: bool
 }
 
-impl ACO2 {
-    pub fn new(g: Graph, k: usize, c: f64, evap: f64, min_tau: f64, max_tau: f64, tau_init: f64,
+impl<T: GraphCore+GraphRng> ACO2<T> {
+    pub fn new(g: T, k: usize, c: f64, evap: f64, min_tau: f64, max_tau: f64, tau_init: f64,
             seed_u64: u64, base_tree: Option<RootedTree>, edge_betweeness_centrality: Vec<f64>,
-        dist_matrix: Vec<u32>) -> ACO2 {
-        let n = g.n;
+        dist_matrix: Vec<u32>) -> ACO2<T> {
+        let n = g.vertex_count();
         let tau_matrix = vec![tau_init; n*n];
         let edges = g.get_edges();
         let tau_sg = SegmentTree::new(edges.len());
@@ -231,7 +233,7 @@ impl ACO2 {
                 if elapsed.as_secs_f64() >= recheck_every * (recheck_count + 1) as f64 {
                     recheck_count += 1;
 
-                    let disto = cur_best_tree.distorsion(&self.dist_matrix);
+                    let disto = cur_best_tree.distorsion::<T>(&self.dist_matrix);
                     if disto < tot_real_disto {
                         tot_real_disto = disto;
                         tot_best_tree = cur_best_tree.clone();
@@ -343,7 +345,7 @@ impl ACO2 {
 
         }
 
-        (cur_best_tree.distorsion(&self.dist_matrix), trace)
+        (cur_best_tree.distorsion::<T>(&self.dist_matrix), trace)
     }
 }
 

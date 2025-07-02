@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
-use crate::{counters, distorsion_heuristics::{constants, Num}, graph::{Graph, RootedTree, N}, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
+use crate::{counters, distorsion_heuristics::{constants, Num}, graph::{RootedTree, N}, graph_core::{ GraphCore}, graph_generator::GraphRng, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
 
 
 impl RootedTree {
@@ -121,8 +121,8 @@ impl RootedTree {
         true
     }
 
-    pub fn subtree_swap_with_edge(&mut self, ei: usize, prng: &mut Prng,
-        edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool
+    pub fn subtree_swap_with_edge<T: GraphCore>(&mut self, ei: usize, prng: &mut Prng,
+        edges: &Vec<[usize; 2]>, g: &T, tree_buf: &mut T) -> bool
     {
 
         self.update_parents();
@@ -145,8 +145,8 @@ impl RootedTree {
 
     }
 
-    pub fn subtree_swap_with_random_edge(&mut self, prng: &mut Prng, 
-        edges: &Vec<[usize; 2]>, g: &Graph, tree_buf: &mut Graph) -> bool {
+    pub fn subtree_swap_with_random_edge<T: GraphCore>(&mut self, prng: &mut Prng, 
+        edges: &Vec<[usize; 2]>, g: &T, tree_buf: &mut T) -> bool {
         
         let ei = (prng.next_u64() % edges.len() as u64) as usize;
         self.subtree_swap_with_edge(ei, prng, edges, g, tree_buf)
@@ -169,7 +169,7 @@ impl RootedTree {
         }
     }
 
-    pub fn get_critical_path(&mut self, prng: &mut Prng, tree_buf: &mut Graph) -> Vec<usize> {
+    pub fn get_critical_path<T: GraphCore>(&mut self, prng: &mut Prng, tree_buf: &mut T) -> Vec<usize> {
         let mut ans = vec![];
 
         let leaf = self.shuffle_tree_and_random_leaf(prng);
@@ -183,19 +183,18 @@ impl RootedTree {
         ans
     }
 
-    pub fn subtree_swap_with_random_critical_path(&mut self, prng: &mut Prng, g: &Graph, tree_buf: &mut Graph) {
+    pub fn subtree_swap_with_random_critical_path<T: GraphCore>(&mut self, prng: &mut Prng, g: &T, tree_buf: &mut T) {
         let cp = self.get_critical_path(prng, tree_buf);
         self.subtree_swap_with_vertices(prng, &cp, g, tree_buf)
     }
     
-    fn subtree_swap_with_vertices(&self, prng: &mut Prng, vertices: &Vec<usize>,
-        g: &Graph, tree_buf: &mut Graph)
+    fn subtree_swap_with_vertices<T: GraphCore>(&self, prng: &mut Prng, vertices: &Vec<usize>,
+        g: &T, tree_buf: &mut T)
     {
         //println!("{:?}", vertices);
 
         let mut covered_vertices = vec![false; self.n];
         //let vertices = self.get_critical_path(prng, tree_buf);
-        tree_buf.clear();
         for &v in vertices {
             covered_vertices[v] = true;
         }
@@ -219,12 +218,13 @@ impl RootedTree {
 
         let mut m = 0;
         let mut i = 0;
+        let mut edges = Vec::with_capacity(self.n -1);
         while m < n2 - 1 {
             let [u, v] = possible_edges[i];
 
             if uf.find(u) != uf.find(v) {
                 uf.union(u, v);
-                tree_buf.add_edge_unckecked(u, v);
+                edges.push([u, v]);
                 m += 1;
             }
 
@@ -234,10 +234,13 @@ impl RootedTree {
         for (u, children) in self.children.iter().enumerate() {
             for &v in children.iter() {
                 if !covered_vertices[u] || !covered_vertices[v] {
-                    tree_buf.add_edge_unckecked(u, v);
+                    edges.push([u, v]);
                 }
             }
         }
+
+        tree_buf.update_from_edges(&edges);
+
 
         
 
@@ -246,54 +249,6 @@ impl RootedTree {
 
 }
 
-
-impl Graph {
-    pub fn bfs_further_vertex(&self, u: usize, construct_path: bool, path: &mut Vec<usize>) -> usize {
-        static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
-        
-        unsafe{QUEUE[0] = (u, 0)};
-
-        let mut previous = vec![-1; self.n];
-        previous[u] = -2;
-
-        let mut current_furthest = (u, 0);
-
-        let mut i = 0;
-        let mut j = 1;
-
-        while i < j {
-            unsafe{
-                let (v, d) = QUEUE[i];
-                //println!("{} {}", v, d);
-                if current_furthest.1 < d {
-                    current_furthest = (v, d);
-                }
-
-                i += 1;
-
-                for &nv in self.get_neighbors(v) {
-                    if previous[nv] == -1 {
-                        previous[nv] = v as isize;
-                        QUEUE[j] = (nv, d + 1);
-                        j += 1;
-                    }
-                }
-            }
-        }
-
-        if construct_path {
-            let mut v = current_furthest.0 as isize;
-            while v != -2 {
-                assert!(v >= 0);
-                path.push(v as usize);
-                v = previous[v as usize];
-            }
-        }
-
-        current_furthest.0
-    }
-
-}
 
 
 
@@ -304,10 +259,10 @@ pub enum NeighborhoodStrategies {
     CriticalPathSubtreeRelocation
 }
 
-pub struct VNS {
+pub struct VNS<T: GraphCore+GraphRng> {
     n: usize,
-    g: Graph,
-    tree_buf: Graph,
+    g: T,
+    tree_buf: T,
     tarjan_solver: TarjanSolver,
     edges: Vec<[usize; 2]>,
     prng: Prng,
@@ -322,9 +277,9 @@ pub struct VNS {
     dist_matrix: Vec<u32>
 }   
 
-impl VNS {
+impl<T: GraphCore+GraphRng> VNS<T> {
 
-    pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode: usize) -> VNS {
+    pub fn new(g: T, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode: usize) -> VNS<T> {
         use NeighborhoodStrategies::*;
         static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 3]; 3] = [
             [EdgeSubtreeRelocation, CriticalPathSubtreeRelocation, EdgeSubtreeRelocation],
@@ -339,10 +294,10 @@ impl VNS {
 
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
-        let n = g.n;
+        let n = g.vertex_count();
 
-
-        VNS { n, g, tree_buf: Graph::new_empty(n),
+        let tree_buf = g.clone_empty();
+        VNS { n, g, tree_buf,
             tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
             k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
             neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix }
@@ -482,7 +437,7 @@ impl VNS {
                 // descente
                 let (x2, xdist2) = self.vnd(y, ydist);
                 if recompute_dist {
-                    let x2_real_dist = x2.distorsion(&self.dist_matrix);
+                    let x2_real_dist = x2.distorsion::<T>(&self.dist_matrix);
 
                     // update
                     if x2_real_dist < x_real_dist &&
@@ -512,7 +467,7 @@ impl VNS {
 
         }
 
-        if !recompute_dist {x_real_dist = x.distorsion(&self.dist_matrix)};
+        if !recompute_dist {x_real_dist = x.distorsion::<T>(&self.dist_matrix)};
         (x, xdist, x_real_dist, trace)
     }
 

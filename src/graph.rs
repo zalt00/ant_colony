@@ -4,6 +4,10 @@ use std::{fmt::Debug, u32};
 use rustworkx_core::petgraph;
 use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
+use crate::compressed_graph::CompressedGraph;
+use crate::graph_core::GraphCore;
+use crate::graph_generator::GraphRng;
+
 
 pub const N: usize = 50000;
 
@@ -18,29 +22,27 @@ pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
 }
 
 
-
 #[derive(Debug, Clone)]
-pub struct Graph {
+pub struct MatGraph {
     pub(crate) n: usize,
     pub(crate) adj_tab: Vec<usize>
 }
 
 pub static mut CHEPA: f64 = 0.0;
 
-impl Graph {
-    pub fn new_empty(n: usize) -> Graph {
-        Graph { n, adj_tab: vec![0; n*(n+1)] }
+impl MatGraph {
+    pub fn new_empty(n: usize) -> MatGraph {
+        MatGraph { n, adj_tab: vec![0; n*(n+1)] }
     }
 
     pub fn clear(&mut self) {
         for i in 0..self.n {
             self.adj_tab[i * self.n] = 0;
         }
-
     }
 
-    pub fn from_petgraph(pg: &petgraph::graph::UnGraph<u32, ()>) -> Graph {
-        let mut g = Graph::new_empty(pg.node_count());
+    pub fn from_petgraph(pg: &petgraph::graph::UnGraph<u32, ()>) -> MatGraph {
+        let mut g = MatGraph::new_empty(pg.node_count());
 
         for e in pg.raw_edges() {
             let s = e.source();
@@ -55,58 +57,11 @@ impl Graph {
         g
     }
 
-    pub fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
-        use rustworkx_core::petgraph;
-        use rustworkx_core::centrality::edge_betweenness_centrality;
-
-        let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
-        
-        let output = edge_betweenness_centrality(&g, false, 500000);
-        let mut mat = vec![0.0; self.n*self.n];
-
-        for i in g.edge_indices() {
-            let endpoints = g.edge_endpoints(i).unwrap();
-            let bt = output[EdgeIndexable::to_index(&g, i)].unwrap();
-            let u = NodeIndexable::to_index(&g, endpoints.0);
-            let v = NodeIndexable::to_index(&g, endpoints.1);
-
-            mat[u + self.n * v] = bt;
-            mat[v + self.n * u] = bt;
-        }
-
-        mat
-    }
-
-
     pub fn get_neighboor_count_unchecked(&self, i: usize) -> usize {
         self.adj_tab[i * self.n]
     }
 
-    pub fn get_edges(&self) -> Vec<[usize; 2]> {
-        let mut edges = vec![];
 
-        for i in 0..(self.n-1) {
-            for &j in self.get_neighbors(i) {
-                if j > i {
-                    edges.push([i, j])
-                }
-            }
-        }
-        edges
-    }
-
-    pub fn get_edges_tpl(&self) -> Vec<(u32, u32)> {
-        let mut edges = vec![];
-
-        for i in 0..(self.n-1) {
-            for &j in self.get_neighbors(i) {
-                if j > i {
-                    edges.push((i as u32, j as u32))
-                }
-            }
-        }
-        edges
-    }
 
     pub fn incr_neighboor_count_unchecked(&mut self, i: usize) {
         self.adj_tab[i * self.n] += 1;
@@ -144,22 +99,18 @@ impl Graph {
         self.decr_neighboor_count_unchecked(v);
     }
 
-    pub fn get_neighbors(&self, i: usize) -> &[usize] {
-        &self.adj_tab[i * self.n + 1..i * self.n + self.get_neighboor_count_unchecked(i) + 1]
-    }
-
     fn get_neighbors_mut(&mut self, i: usize) -> &mut [usize] {
         let nc = self.get_neighboor_count_unchecked(i);
         &mut self.adj_tab[i * self.n + 1..i * self.n + nc + 1]
     }
 
-    pub fn from_string(s: String) -> Option<(f64, Graph)> {
+    pub fn from_string(s: String) -> Option<(f64, MatGraph)> {
 
         let data: Vec<&str> = s.split("|").collect();
         let disto: f64 = data[0].parse().ok()?;
         let n: usize = data[1].parse().ok()?;
 
-        let mut g = Graph::new_empty(n);
+        let mut g = MatGraph::new_empty(n);
 
         for line in data[2].trim().split(";") {
             let l: Vec<&str> = line.split(",").collect();
@@ -204,33 +155,7 @@ impl Graph {
         }
     }
 
-    pub fn get_dist_matrix(&self) -> Vec<u32> {
-        let mut dist_matrix = vec![u32::MAX; self.n * self.n];
 
-        for u in 0..self.n {
-            self.bfs(u, &mut dist_matrix);
-        }
-
-        dist_matrix
-    }
-
-    pub fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {
-        dist_matrix.fill(u32::MAX);
-        for u in 0..self.n {
-            self.bfs(u, dist_matrix);
-        }
-    }
-
-    pub fn distorsion(&mut self, dist_matrix: &mut Vec<u32>, parent_dist_matrix: &Vec<u32>) -> f64 {
-        self.update_dist_matrix(dist_matrix);   
-        let mut s = 0.0;
-        for i in 0..(self.n * self.n) {
-            if parent_dist_matrix[i] > 0 {
-                s += dist_matrix[i] as f64 / parent_dist_matrix[i] as f64;
-            }
-        }
-        s / self.n as f64 / (self.n-1) as f64
-    }
 
     pub fn s22_slow(&self, dist_matrix: &mut Vec<u32>) -> f64 {
         self.update_dist_matrix(dist_matrix);   
@@ -290,7 +215,7 @@ impl Graph {
         ens_sommets.pop();
     }
 
-    pub fn stretch_moyen(&self, parent_g: &Graph, dist_matrix: &Vec<u32>, ens_sommets: &Vec<usize>, sommet_dedans: &Vec<bool>) -> f64 {
+    pub fn stretch_moyen(&self, parent_g: &MatGraph, dist_matrix: &Vec<u32>, ens_sommets: &Vec<usize>, sommet_dedans: &Vec<bool>) -> f64 {
         
         let mut s = 0;
         let mut c = 0;
@@ -307,9 +232,72 @@ impl Graph {
         s as f64 / c as f64
     }
     
+}
+
+impl GraphCore for MatGraph {
+    fn get_neighbors(&self, i: usize) -> &[usize] {
+        &self.adj_tab[i * self.n + 1..i * self.n + self.get_neighboor_count_unchecked(i) + 1]
+    }
+    
+    fn vertex_count(&self) -> usize {
+        self.n
+    }
+    
+    fn from_edges(n:usize, edges: &Vec<[usize; 2]>) -> Self {
+        let mut g = Self::new_empty(n);
+        for &[u, v] in edges {
+            g.add_edge_unckecked(u, v);
+        }
+        g
+    }
+    
+    fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
+        self.clear();
+        for &[u, v] in edges {
+            self.add_edge_unckecked(u, v);
+        }
+    }
+    
+    fn clone_empty(&self) -> Self {
+        Self::new_empty(self.n)
+    }
+
+    fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {
+        dist_matrix.fill(u32::MAX);
+        for u in 0..self.n {
+            self.bfs(u, dist_matrix);
+        }
+    }
+    
+    fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
+        use rustworkx_core::petgraph;
+        use rustworkx_core::centrality::edge_betweenness_centrality;
+
+        let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
+        
+        let output = edge_betweenness_centrality(&g, false, 500000);
+        let mut mat = vec![0.0; self.n*self.n];
+
+        for i in g.edge_indices() {
+            let endpoints = g.edge_endpoints(i).unwrap();
+            let bt = output[EdgeIndexable::to_index(&g, i)].unwrap();
+            let u = NodeIndexable::to_index(&g, endpoints.0);
+            let v = NodeIndexable::to_index(&g, endpoints.1);
+
+            mat[u + self.n * v] = bt;
+            mat[v + self.n * u] = bt;
+        }
+
+        mat
+    }
+
 
 
 }
+
+impl GraphRng for MatGraph {}
+
+
 
 #[derive(Clone)]
 pub struct RootedTree {
@@ -382,31 +370,32 @@ impl RootedTree {
         self.root = root;
     }
 
-    pub fn fill_graph(&self, tree_buf: &mut Graph) {
-        tree_buf.clear();
+    pub fn fill_graph<T: GraphCore>(&self, tree_buf: &mut T) {
+        let mut edges = Vec::with_capacity(self.n - 1);
         for (u, children) in self.children.iter().enumerate() {
             for v in children.iter() {
-                tree_buf.add_edge_unckecked(u, *v);
+                edges.push([u, *v]);
             }
         }
+        tree_buf.update_from_edges(&edges);
     }
 
-    pub fn to_graph(&self) -> Graph {
-        let mut g = Graph::new_empty(self.n);
+    pub fn to_graph<T: GraphCore>(&self) -> T {
+        let mut edges = Vec::with_capacity(self.n - 1);
         for (u, children) in self.children.iter().enumerate() {
             for v in children.iter() {
-                g.add_edge_unckecked(u, *v);
+                edges.push([u, *v]);
             }
         }
-        g
+        T::from_edges(self.n, &edges)
     }
 
-    pub fn from_graph(g: &Graph, root: usize) -> RootedTree {
-        let mut tree = Self::new(g.n, root);
+    pub fn from_graph<T: GraphCore>(g: &T, root: usize) -> RootedTree {
+        let mut tree = Self::new(g.vertex_count(), root);
 
-        let mut visited = vec![false; g.n];
+        let mut visited = vec![false; g.vertex_count()];
 
-        fn dfs(u: usize, g: &Graph, visited: &mut Vec<bool>, tree: &mut RootedTree) {
+        fn dfs<T: GraphCore>(u: usize, g: &T, visited: &mut Vec<bool>, tree: &mut RootedTree) {
             visited[u] = true;
 
             for &v in g.get_neighbors(u) {

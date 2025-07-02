@@ -8,15 +8,17 @@ use rand::{RngCore, SeedableRng};
 
 use crate::aco2::ACO2;
 use crate::annealing::SA;
+use crate::compressed_graph::CompressedGraph;
+use crate::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
 use crate::neighborhood::VNS;
 use crate::my_rand::{random_permutation, Prng};
 use crate::greedy::greedy_ebc_delete_no_recompute;
-use crate::graph_generator::{Data, GraphData};
+use crate::graph_generator::{Data, GraphData, GraphRng};
 use crate::graph::print_counters;
 use crate::graph::RootedTree;
-use crate::graph::Graph;
+use crate::graph::MatGraph;
 use crate::config::Profile;
 use crate::config::Config;
 use crate::config::AntColonyProfile;
@@ -33,10 +35,12 @@ pub mod annealing;
 pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
+pub mod compressed_graph;
+pub mod graph_core;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
-    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
     assert!(g.is_connected());
 
     // let c = 100.0;
@@ -100,7 +104,7 @@ pub fn save_result(gdt: &GraphData, label: &str, d: f64, trace: Vec<TraceData>) 
 }
 
 pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
-    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
 
     let time_limit = if gdt.n > 500 {
         10. * 60.
@@ -234,7 +238,7 @@ fn main() {
                     let mut prng = Prng::seed_from_u64(1671);
 
 
-                    let g = Graph::random_graph(1000, 10000, &mut prng);
+                    let g = MatGraph::random_graph(1000, 10000, &mut prng);
                     let dm = g.get_dist_matrix();
 
                     let mut dists = [0_u32; 10];
@@ -264,7 +268,7 @@ fn main() {
                     for _ in 0..10 {
                         let t = g.random_subtree(&mut prng);
                         let dhu = t.new_disto_approx();
-                        let d = t.distorsion(&dm);
+                        let d = t.distorsion::<MatGraph>(&dm);
 
                         let dh = dhu as f64 / (g.n as f64 * (g.n - 1) as f64) / m * 2.0;// * 1.0537940243214428; 
                         
@@ -289,7 +293,7 @@ fn main() {
                     // println!("{}", t.new_disto_approx());
                     // println!("{}", t.s22_slow());
 
-                    let mut vns = VNS::new(g, 123, ebc, dm, 2);
+                    let mut vns: VNS<MatGraph> = VNS::new(g, 123, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
                     
                     println!("{}", d.0);
@@ -311,7 +315,7 @@ fn main() {
                     let gdt = &data.samples[6];
                     let mut per_distances = [0; 10];
 
-                    let (_g, _ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    let (_g, _ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
 
                     println!("{}", &gdt.label);
                     println!("max dist: {}", dm.iter().max().unwrap());
@@ -334,13 +338,13 @@ fn main() {
                     for (k, l) in [(30, 30), (10, 100), (100, 10)] {
                         let n = k * l;
                         let perm = random_permutation(n, &mut prng);
-                        let g = Graph::clique_cycle(k, l).renumber(&perm);
-                        let t = Graph::clique_cycle_mindisto_tree(k, l).renumber(&perm);
+                        let g = MatGraph::clique_cycle(k, l).renumber(&perm);
+                        let t = MatGraph::clique_cycle_mindisto_tree(k, l).renumber(&perm);
                         let trooted = RootedTree::from_graph(&t, 0);
 
                         let mut gdt = GraphData::from_graph(&g, false, false);
                         let dm = g.get_dist_matrix();
-                        let d = trooted.distorsion(&dm);
+                        let d = trooted.distorsion::<MatGraph>(&dm);
 
                         gdt.label = format!("data/clique_cycle{}-{}", k, l);
 
@@ -368,7 +372,7 @@ fn main() {
                     let gdt = &data.samples[0];
 
                     println!("n={}, m={}", gdt.n, gdt.m);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
                     assert!(g.is_connected());
 
                     let mut prng = Prng::seed_from_u64(987);
@@ -381,8 +385,8 @@ fn main() {
                         let da1 = t1.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
                         let da2 = t2.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
 
-                        let d1 = t1.distorsion(&dm);
-                        let d2 = t2.distorsion(&dm);
+                        let d1 = t1.distorsion::<MatGraph>(&dm);
+                        let d2 = t2.distorsion::<MatGraph>(&dm);
 
                         if (da1 < da2 && d1 > d2) || (da1 > da2 && d1 < d2) {
                             _pas_cool += 1;
@@ -397,19 +401,19 @@ fn main() {
 
                 Profile::NeighborhoodTest => {
                     let mut prng = Prng::seed_from_u64(123);
-                    let g = Graph::random_graph(15, 80, &mut prng);
+                    let g = MatGraph::random_graph(15, 80, &mut prng);
 
                     g.to_dot("graph.dot");
 
                     let mut t = g.random_subtree(&mut prng);
                     t.update_parents();
-                    t.to_graph().to_dot("tree.dot");
+                    t.to_graph::<CompressedGraph>().to_dot("tree.dot");
 
                     // while !t.edge_swap_random(&mut prng, &g.get_edges()) {};
 
                     // t.to_graph().to_dot("tree2.dot");
 
-                    let mut tbuf = Graph::new_empty(g.n);
+                    let mut tbuf = MatGraph::new_empty(g.n);
                     // while !t.subtree_swap_with_random_edge(&mut prng, &g.get_edges(), &g, &mut tbuf) {}
 
                     t.subtree_swap_with_random_critical_path(&mut prng, &g, &mut tbuf);
@@ -426,7 +430,7 @@ fn main() {
                     println!("launching test: VNS");
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut vns = VNS::new(g, 1203, ebc, dm, 0);
+                    let mut vns: VNS<MatGraph> = VNS::new(g, 1203, ebc, dm, 0);
                     let d = vns.gvns_random_start_nonapprox_timeout(60.0);
 
                     println!("vns result: {}", d.0);
@@ -435,7 +439,7 @@ fn main() {
                     println!("launching test: Annealing");
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut sa = SA::new(g, 1203, ebc, dm);
+                    let mut sa: SA<MatGraph> = SA::new(g, 1203, ebc, dm);
                     let d = sa.beuh(60.0);
                     println!("{}", d.0);
 
@@ -447,7 +451,7 @@ fn main() {
                     let min_tau = 0.2;
                     let tau_init = 76.;
 
-                    let mut aco2 = ACO2::new(g, 10, _dt.c, _dt.evap, min_tau, max_tau, tau_init, 121, None, ebc, dm);
+                    let mut aco2: ACO2<MatGraph> = ACO2::new(g, 10, _dt.c, _dt.evap, min_tau, max_tau, tau_init, 121, None, ebc, dm);
                     aco2.vnd_hybrid = true;
                     let d = aco2.launch(1000000, 0.5, 6.0, 2.0);
                     println!("d: {}", d.0);
@@ -481,7 +485,7 @@ fn main() {
                         println!("sample name: <{}>", gdt.label);
                         let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                        let mut vns = VNS::new(g, 1203, ebc, dm, 0);
+                        let mut vns: VNS<MatGraph> = VNS::new(g, 1203, ebc, dm, 0);
                         let d = vns.gvns_random_start_nonapprox_timeout(20.0);
 
                         println!("disto={}", d.0);
@@ -505,14 +509,14 @@ fn main() {
                     let l = 60;
 
                     let permutation = random_permutation(k*l, &mut prng);
-                    let g = Graph::clique_cycle(k, l).renumber(&permutation);
-                    let tree = Graph::clique_cycle_mindisto_tree(k, l).renumber(&permutation);
+                    let g = MatGraph::clique_cycle(k, l).renumber(&permutation);
+                    let tree = MatGraph::clique_cycle_mindisto_tree(k, l).renumber(&permutation);
                     let rooted_tree = RootedTree::from_graph(&tree, (prng.next_u64() % (k*l) as u64) as usize);
 
                     let dm = g.get_dist_matrix();
                     let ebc = g.get_edge_betweeness_centrality();
 
-                    println!("disto: {}", rooted_tree.distorsion(&dm));
+                    println!("disto: {}", rooted_tree.distorsion::<MatGraph>(&dm));
 
                     let mut vns = VNS::new(g, 1203, ebc, dm, 0);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);

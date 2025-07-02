@@ -4,16 +4,15 @@ use std::io::{BufRead, BufReader, Write};
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
+use crate::graph_core::GraphCore;
 use crate::my_rand::Prng;
-use crate::{graph::{Graph, RootedTree}, utils::Uf};
+use crate::{graph::{MatGraph, RootedTree}, utils::Uf};
 
 
-impl Graph {
+pub trait GraphRng: GraphCore {
 
-    pub fn random_tree(n: usize, prng: &mut Prng) -> Graph {
-
-        let mut g = Graph::new_empty(n);
-
+    fn random_tree(n: usize, prng: &mut Prng) -> Self where Self: Sized {
+        let mut edges = Vec::with_capacity(n - 1);
         let mut covered_vertices = vec![];
         let mut uncovered_vertices: Vec<usize> = (0..n).collect();
         
@@ -28,13 +27,13 @@ impl Graph {
             let u = covered_vertices[j];
             let v = uncovered_vertices.swap_remove(i);
             covered_vertices.push(v);
-            g.add_edge_unckecked(u, v);
+            edges.push([u, v])
         }
 
-        g
+        Self::from_edges(n, &edges)
     }
 
-    pub fn random_graph(n: usize, m: usize, prng: &mut Prng) -> Graph {
+    fn random_graph(n: usize, m: usize, prng: &mut Prng) -> Self where Self: Sized {
         let mut t = Self::random_tree(n, prng);
 
         let mut adj_mat = vec![false; n*n];
@@ -42,26 +41,27 @@ impl Graph {
             adj_mat[u + n * v] = true;
             adj_mat[v + n * u] = true;
         }
-
+        let mut edges = Vec::with_capacity(m);
+        edges.append(&mut t.get_edges().clone());
         for _ in 0..m {
             let u = (prng.next_u64() % n as u64) as usize;
             let v = (prng.next_u64() % n as u64) as usize;
             //println!("{} {}", u, v);
             if !adj_mat[u + n * v] && u != v {
-                t.add_edge_unckecked(u, v);
+                edges.push([u, v]);
                 adj_mat[u + n * v] = true;
                 adj_mat[v + n * u] = true;
             }
         }
 
-        t
+        Self::from_edges(n, &edges)
 
     }
 
-    pub fn to_dot(&self, fname: &str) {
+    fn to_dot(&self, fname: &str) {
         // 2) Détection du nombre de nœuds nécessaire (max index + 1)
         let edges = self.get_edges();
-        let node_count = self.n;
+        let node_count = self.vertex_count();
 
         // 3) Création d'un graphe non orienté, poids () sur les arêtes
         let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
@@ -83,9 +83,9 @@ impl Graph {
         writeln!(file, "{dot:?}").expect("beuh");
     }
 
-    pub fn is_connected(&self) -> bool {
+    fn is_connected(&self) -> bool {
                 let edges = self.get_edges();
-        let node_count = self.n;
+        let node_count = self.vertex_count();
 
         // 3) Création d'un graphe non orienté, poids () sur les arêtes
         let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
@@ -105,9 +105,9 @@ impl Graph {
         petgraph::algo::connected_components(&g) == 1
     }
 
-    pub fn is_connected_without(&self, edge: [usize; 2]) -> bool {
+    fn is_connected_without(&self, edge: [usize; 2]) -> bool {
                 let edges = self.get_edges();
-        let node_count = self.n;
+        let node_count = self.vertex_count();
 
         // 3) Création d'un graphe non orienté, poids () sur les arêtes
         let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
@@ -130,23 +130,24 @@ impl Graph {
         petgraph::algo::connected_components(&g) == 1
     }
 
-    pub fn random_subtree(&self, prng: &mut Prng) -> RootedTree {
-        let mut uf = Uf::init(self.n);
+    fn random_subtree(&self, prng: &mut Prng) -> RootedTree where Self: Sized {
+        let mut uf = Uf::init(self.vertex_count());
 
         let mut edges = self.get_edges();
         edges.shuffle(prng);
 
-        let mut t = Graph::new_empty(self.n);
+        let n = self.vertex_count();
+        let mut tree_edges = Vec::with_capacity(n - 1);
 
         let mut m = 0;
         let mut i = 0;
-        while m < self.n - 1 {
+        while m < n - 1 {
             let [u, v] = edges[i];
 
             if uf.find(u) != uf.find(v) {
                 uf.union(u, v);
 
-                t.add_edge_unckecked(u, v);
+                tree_edges.push([u, v]);
                 m += 1;
             }
 
@@ -154,57 +155,57 @@ impl Graph {
             i += 1;
         }
 
-        let root = (prng.next_u64() % self.n as u64) as usize;
+        let root = (prng.next_u64() % n as u64) as usize;
 
-        RootedTree::from_graph(&t, root)
+        RootedTree::from_graph(&Self::from_edges(n, &tree_edges), root)
     }
 
-    fn fill_clique(&mut self, i: usize, j: usize) {
+    fn fill_clique(edges: &mut Vec<[usize; 2]>, i: usize, j: usize) {
         // [i, j[
 
         for s in i..(j-1) {
             for t in (s+1)..j {
-                self.add_edge_unckecked(s, t);
+                edges.push([s, t]);
             }
         }
     }
 
-    pub fn clique_cycle(clique_count: usize, clique_size: usize) -> Graph {
+    fn clique_cycle(clique_count: usize, clique_size: usize) -> Self where Self: Sized {
         let n = clique_count * clique_size;
-        let mut g = Graph::new_empty(n);
+        let mut edges = Vec::new();
 
         for i in (0..n).step_by(clique_size) {
-            g.fill_clique(i, i + clique_size);
-            g.add_edge_unckecked(i, (i+clique_size) % n);
+            Self::fill_clique(&mut edges, i, i + clique_size);
+            edges.push([i, (i+clique_size) % n])
         }
-        g
+        Self::from_edges(n, &edges)
     }
 
-    pub fn clique_cycle_mindisto_tree(clique_count: usize, clique_size: usize) -> Graph {
+    fn clique_cycle_mindisto_tree(clique_count: usize, clique_size: usize) -> Self where Self: Sized {
         let n = clique_count * clique_size;
-        let mut g = Graph::new_empty(n);
+        let mut edges = Vec::with_capacity(n - 1);
 
         for i in (0..n).step_by(clique_size) {
             for j in (i+1)..(i+clique_size) {
-                g.add_edge_unckecked(i, j);
+                edges.push([i, j]);
             }
             if i > 0 {
-                g.add_edge_unckecked(i, (i+clique_size) % n);
+                edges.push([i, (i + clique_size) % n]);
             }
         }
-        g
+        Self::from_edges(n, &edges)
     }
 
-    pub fn renumber(&self, permutation: &Vec<usize>) -> Graph {
-
-        let mut g2 = Graph::new_empty(self.n);
+    fn renumber(&self, permutation: &Vec<usize>) -> Self where Self: Sized {
+        let base_edges = self.get_edges();
+        let mut edges = Vec::with_capacity(base_edges.len());
         //println!("len: {}", self.n);
-        for &[u, v] in self.get_edges().iter() {
+        for &[u, v] in &base_edges {
             //println!("{} {}", u, v);
-            g2.add_edge_unckecked(permutation[u], permutation[v]);
+            edges.push([permutation[u], permutation[v]]);
         } 
 
-        g2
+        Self::from_edges(self.vertex_count(), &edges)
 
     }
 
@@ -226,7 +227,7 @@ impl Data {
         let mut prng = Prng::seed_from_u64(seed);
         for sample_id in 1..=n_samples { 
             println!("generating sample {}", sample_id);
-            let g = Graph::random_graph(n, m, &mut prng);
+            let g = MatGraph::random_graph(n, m, &mut prng);
             samples.push(GraphData::from_graph(&g, false, false));
         }
 
@@ -270,7 +271,7 @@ pub struct GraphData {
 }
 
 impl GraphData {
-    pub fn from_graph(g: &Graph, compute_ebc: bool, compute_dm: bool) -> GraphData {
+    pub fn from_graph(g: &MatGraph, compute_ebc: bool, compute_dm: bool) -> GraphData {
 
         let n = g.n;
         let edges = g.get_edges();
@@ -286,13 +287,8 @@ impl GraphData {
         GraphData { label: "unlabeled".to_string(), n, m, edges, ebc, dist_matrix }
     }
 
-    pub fn to_graph(&self) -> Graph {
-        let mut g = Graph::new_empty(self.n);
-        for &e in &self.edges {
-            g.add_edge_unckecked(e[0], e[1]);
-        }
-
-        g
+    pub fn to_graph<T: GraphCore>(&self) -> T {
+        T::from_edges(self.n, &self.edges)
     }
 
     pub fn from_text_file(path: &str) -> GraphData {
@@ -325,8 +321,8 @@ impl GraphData {
         gdt2
     }
 
-    pub fn graph_ebc_dist_matrix(&self) -> (Graph, Vec<f64>, Vec<u32>) {
-        let g = self.to_graph();
+    pub fn graph_ebc_dist_matrix<T: GraphCore>(&self) -> (T, Vec<f64>, Vec<u32>) {
+        let g = self.to_graph::<T>();
 
         let ebc = if let Some(ebc) = &self.ebc {
             ebc.clone()
@@ -352,8 +348,8 @@ impl GraphData {
 
     }
 
-    pub fn graph_ebc_dist_matrix_force(&self) -> (Graph, Vec<f64>, Vec<u32>) {
-        let g = self.to_graph();
+    pub fn graph_ebc_dist_matrix_force<T: GraphCore>(&self) -> (T, Vec<f64>, Vec<u32>) {
+        let g: T = self.to_graph();
 
         let ebc = if let Some(ebc) = &self.ebc {
             ebc.clone()
@@ -373,8 +369,8 @@ impl GraphData {
     }
 
 
-    pub fn graph_dist_matri(&self) -> (Graph, Vec<u32>) {
-        let g = self.to_graph();
+    pub fn graph_dist_matrix<T: GraphCore>(&self) -> (T, Vec<u32>) {
+        let g: T = self.to_graph();
 
         let dm = if let Some(dm) = &self.dist_matrix {
             dm.clone()

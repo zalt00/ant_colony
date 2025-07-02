@@ -1,7 +1,7 @@
 use core::f64;
 
 
-use crate::graph::Graph;
+use crate::{graph::MatGraph, graph_core::GraphCore, graph_generator::GraphRng};
 
 #[derive(PartialEq, PartialOrd)]
 struct ComparableFloat(f64);
@@ -15,7 +15,7 @@ impl Ord for ComparableFloat {
     }
 }
 
-pub fn greedy_ebc_delete_no_recompute(g: &Graph, ebc: &Vec<f64>, dm: &Vec<u32>) -> (f64, Graph) {
+pub fn greedy_ebc_delete_no_recompute(g: &MatGraph, ebc: &Vec<f64>, dm: &Vec<u32>) -> (f64, MatGraph) {
     let mut tree = g.clone();
     let mut edges = g.get_edges();
     edges.sort_by_key(|&[u, v]| {ComparableFloat(ebc[u + g.n * v])});

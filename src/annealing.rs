@@ -3,17 +3,17 @@ use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 
-use crate::{distorsion_heuristics::constants, graph::{Graph, RootedTree}, my_rand::{my_rand, Prng}, neighborhood::NeighborhoodStrategies, trace::TraceData, utils::TarjanSolver};
+use crate::{distorsion_heuristics::constants, graph::{MatGraph, RootedTree}, graph_core::GraphCore, graph_generator::GraphRng, my_rand::{my_rand, Prng}, neighborhood::NeighborhoodStrategies, trace::TraceData, utils::TarjanSolver};
 
 
 
 
 
 
-pub struct SA {
+pub struct SA<T: GraphCore+GraphRng> {
     n: usize,
-    g: Graph,
-    tree_buf: Graph,
+    g: T,
+    tree_buf: T,
     tarjan_solver: TarjanSolver,
     edges: Vec<[usize; 2]>,
     prng: Prng,
@@ -29,17 +29,17 @@ pub struct SA {
     dist_matrix: Vec<u32>
 }   
 
-impl SA {
-    pub fn new(g: Graph, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> SA {
+impl<T: GraphCore+GraphRng> SA<T> {
+    pub fn new(g: T, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>) -> SA<T> {
         use NeighborhoodStrategies::*;
         static NEIGHBORHOOD_STRATEGIES: [NeighborhoodStrategies; 3] = [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap];
 
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
-        let n = g.n;
+        let n = g.vertex_count();
 
-
-        SA { n, g, tree_buf: Graph::new_empty(n),
+        let tree_buf = g.clone_empty();
+        SA { n, g, tree_buf,
             tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
             k: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES, temperature: 1.0, _coef: 1.,
             dist_matrix }
@@ -144,7 +144,7 @@ impl SA {
             //println!("elapsed: {}", elapsed.as_secs_f64());
 
         }
-        let d = best_approx_tree.distorsion(&self.dist_matrix);
+        let d = best_approx_tree.distorsion::<T>(&self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
         (d, trace)
     }
@@ -195,7 +195,7 @@ impl SA {
             //println!("elapsed: {}", elapsed.as_secs_f64());
 
         }
-        let d = best_approx_tree.distorsion(&self.dist_matrix);
+        let d = best_approx_tree.distorsion::<T>(&self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
         (d, trace)
     }
