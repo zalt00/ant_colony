@@ -291,13 +291,14 @@ fn main() {
                     // let t = g.random_subtree(&mut prng);
                     // println!("{}", t.new_disto_approx());
                     // println!("{}", t.s22_slow());
+                    {
+                        let mut prng = Prng::seed_from_u64(1234);
 
-
-                    let mut prng = Prng::seed_from_u64(1234);
-                    let t = g.clone().random_subtree(&mut prng);
-                    let mut ts = TarjanSolver::new(g.n, &g);
-                    println!("heuristique: {}", t.heuristic(&g, &vec![], &mut ts, &vec![], &vec![]));
-
+                        let g = MatGraph::random_graph(1000, 20000, &mut prng);
+                        let t = g.clone().random_subtree(&mut prng);
+                        let mut ts = TarjanSolver::new(g.n, &g);
+                        println!("heuristique: {}", t.heuristic(&g, &vec![], &mut ts, &vec![], &vec![]));
+                    }
 
                     let mut vns: VNS<MatGraph> = VNS::new(g, 123, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
