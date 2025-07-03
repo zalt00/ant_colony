@@ -293,11 +293,14 @@ fn main() {
                     // println!("{}", t.s22_slow());
                     {
                         let mut prng = Prng::seed_from_u64(1234);
+                        let g = CompressedGraph::random_graph(1000, 20000, &mut prng);
 
-                        let g = MatGraph::random_graph(1000, 20000, &mut prng);
-                        let t = g.clone().random_subtree(&mut prng);
                         let mut ts = TarjanSolver::new(g.n, &g);
-                        println!("heuristique: {}", t.heuristic(&g, &vec![], &mut ts, &vec![], &vec![]));
+
+                        for _ in 0..10 {
+                            let t = g.clone().random_subtree(&mut prng);
+                            println!("heuristique: {}", t.heuristic(&g, &g.get_edges(), &mut ts, &g.get_edge_betweeness_centrality(), &vec![]));
+                        }
                     }
 
                     let mut vns: VNS<MatGraph> = VNS::new(g, 123, ebc, dm, 2);
