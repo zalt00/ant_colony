@@ -32,7 +32,7 @@ impl RootedTree {
 
         let mut s = 0.0; 
 
-        for u in 0..self.n {
+        for u in 0..self.n { 
             for (i, &v) in g.get_neighbors(u).iter().enumerate() {
                 let l = lca[lca_idx[u] + i];
                 if l < usize::MAX {
@@ -62,7 +62,6 @@ impl RootedTree {
 
 
         let (lca_idx, lca) = tarjan_solver.launch(self, g);
-
         let mut s = 0.0;
         for u in 0..self.n {
             for (i, &v) in g.get_neighbors(u).iter().enumerate() {
@@ -72,14 +71,10 @@ impl RootedTree {
                     //     lca.iter().fold(0, |i, x| {if *x == usize::MAX {i + 1} else {i}}));
 
                     s += (self.depths[u] + self.depths[v] - 2*self.depths[l]) as f64;
-
                 }
             }
         }
-
-
-
-        s / self.n as f64 / (self.n - 1) as f64
+        s / (lca.len() as f64 / 2.0)
     }
 
     #[cfg(not(feature = "use_heuristic"))]

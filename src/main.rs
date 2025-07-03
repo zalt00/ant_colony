@@ -294,12 +294,15 @@ fn main() {
                     {
                         let mut prng = Prng::seed_from_u64(1234);
                         let g = CompressedGraph::random_graph(1000, 20000, &mut prng);
-
+                        let ebc = g.get_edge_betweeness_centrality();
                         let mut ts = TarjanSolver::new(g.n, &g);
+                        println!("m {}", g.get_edges().len());
+                        let dm = g.get_dist_matrix();
 
                         for _ in 0..10 {
                             let t = g.clone().random_subtree(&mut prng);
-                            println!("heuristique: {}", t.heuristic(&g, &g.get_edges(), &mut ts, &g.get_edge_betweeness_centrality(), &vec![]));
+                            println!("heuristique: {}", t.heuristic(&g, &g.get_edges(), &mut ts, &ebc, &vec![]));
+                            println!("disto: {}", t.distorsion(&g, &dm));
                         }
                     }
 
