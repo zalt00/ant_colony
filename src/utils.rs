@@ -175,7 +175,7 @@ impl TarjanSolver {
 
     #[cfg(feature = "need_tarjan")]
     pub fn new<T: GraphCore>(n: usize, g: &T) -> TarjanSolver {
-        let (results_idx, results) = g.get_edges_compressed_vecvec(0_usize);
+        let (results_idx, results) = g.get_edges_compressed_vecvec(usize::MAX);
  
         TarjanSolver { n, uf: Uf::init(n), mark: vec![false; n], ancestors: vec![0; n], results, results_idx }
     }

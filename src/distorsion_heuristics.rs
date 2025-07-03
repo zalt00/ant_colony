@@ -50,14 +50,21 @@ impl RootedTree {
     #[cfg(feature = "stretch_heuristic")]
     pub fn heuristic<T: GraphCore>(&self, g: &T, _edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, _dm: &Vec<u32>) -> Num {
+                use std::collections::HashSet;
+
 
         let (lca_idx, lca) = tarjan_solver.launch(self, g);
+
+        let mut debug_hmap = HashSet::new();
 
         let mut s = 0.0;
         for u in 0..self.n {
             for (i, &v) in g.get_neighbors(u).iter().enumerate() {
                 let l = lca[lca_idx[u] + i];
                 if l < usize::MAX {
+                    assert!(debug_hmap.insert([u.min(v), u.max(v)]), "{} {}", lca.len(),
+                        lca.iter().fold(0, |i, x| {if *x == usize::MAX {i + 1} else {i}}));
+
                     s += (self.depths[u] + self.depths[v] - 2*self.depths[l]) as f64;
 
                 }
