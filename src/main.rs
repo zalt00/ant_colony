@@ -292,6 +292,8 @@ fn main() {
                     // println!("{}", t.new_disto_approx());
                     // println!("{}", t.s22_slow());
 
+
+                    let mut prng = Prng::seed_from_u64(1234);
                     let t = g.clone().random_subtree(&mut prng);
                     let mut ts = TarjanSolver::new(g.n, &g);
                     println!("heuristique: {}", t.heuristic(&g, &vec![], &mut ts, &vec![], &vec![]));
