@@ -32,6 +32,10 @@ pub trait GraphCore: Clone {
     }
 
     fn from_edges(n: usize, edges: &Vec<[usize; 2]>) -> Self;
+    fn add_edge_unckecked(&mut self, u: usize, v: usize);
+    fn reset(&mut self);
+    fn new_empty(n: usize) -> Self where Self:Sized;
+
     fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>);
 
     fn clone_empty(&self) -> Self;

@@ -85,6 +85,18 @@ impl GraphCore for CompressedGraph {
     fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
         todo!()
     }
+    
+    fn add_edge_unckecked(&mut self, u: usize, v: usize) {
+        todo!()
+    }
+    
+    fn reset(&mut self) {
+        todo!()
+    }
+    
+    fn new_empty(n: usize) -> Self {
+        todo!()
+    }
 
 }
 

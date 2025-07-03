@@ -71,15 +71,15 @@ impl MatGraph {
         self.adj_tab[i * self.n] -= 1;
     }
 
-    pub fn add_edge_unckecked(&mut self, i: usize, j: usize) {
-        let li = self.get_neighboor_count_unchecked(i);
-        self.adj_tab[i * self.n + 1 + li as usize] = j;
-        self.incr_neighboor_count_unchecked(i);
+    // pub fn add_edge_unckecked(&mut self, i: usize, j: usize) {
+    //     let li = self.get_neighboor_count_unchecked(i);
+    //     self.adj_tab[i * self.n + 1 + li as usize] = j;
+    //     self.incr_neighboor_count_unchecked(i);
 
-        let lj = self.get_neighboor_count_unchecked(j);
-        self.adj_tab[j * self.n + 1 + lj as usize] = i;
-        self.incr_neighboor_count_unchecked(j);
-    }
+    //     let lj = self.get_neighboor_count_unchecked(j);
+    //     self.adj_tab[j * self.n + 1 + lj as usize] = i;
+    //     self.incr_neighboor_count_unchecked(j);
+    // }
 
     pub fn remove_edge_last_added_unckecked(&mut self, i: usize, j: usize) {
         self.decr_neighboor_count_unchecked(i);
@@ -290,6 +290,24 @@ impl GraphCore for MatGraph {
 
         mat
     }
+    
+    fn add_edge_unckecked(&mut self, i: usize, j: usize) {
+        let li = self.get_neighboor_count_unchecked(i);
+        self.adj_tab[i * self.n + 1 + li as usize] = j;
+        self.incr_neighboor_count_unchecked(i);
+
+        let lj = self.get_neighboor_count_unchecked(j);
+        self.adj_tab[j * self.n + 1 + lj as usize] = i;
+        self.incr_neighboor_count_unchecked(j);
+    }
+    
+    fn reset(&mut self) {
+        self.clear();
+    }
+    
+    fn new_empty(n: usize) -> MatGraph {
+        MatGraph::new_empty(n)
+    }
 
 
 
@@ -371,23 +389,22 @@ impl RootedTree {
     }
 
     pub fn fill_graph<T: GraphCore>(&self, tree_buf: &mut T) {
-        let mut edges = Vec::with_capacity(self.n - 1);
+        tree_buf.reset();
         for (u, children) in self.children.iter().enumerate() {
             for v in children.iter() {
-                edges.push([u, *v]);
+                tree_buf.add_edge_unckecked(u, *v);
             }
         }
-        tree_buf.update_from_edges(&edges);
     }
 
     pub fn to_graph<T: GraphCore>(&self) -> T {
-        let mut edges = Vec::with_capacity(self.n - 1);
+        let mut g = T::new_empty(self.n);
         for (u, children) in self.children.iter().enumerate() {
             for v in children.iter() {
-                edges.push([u, *v]);
+                g.add_edge_unckecked(u, *v);
             }
         }
-        T::from_edges(self.n, &edges)
+        g
     }
 
     pub fn from_graph<T: GraphCore>(g: &T, root: usize) -> RootedTree {

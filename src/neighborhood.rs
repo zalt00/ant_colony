@@ -192,6 +192,7 @@ impl RootedTree {
         g: &T, tree_buf: &mut T)
     {
         //println!("{:?}", vertices);
+        tree_buf.reset();
 
         let mut covered_vertices = vec![false; self.n];
         //let vertices = self.get_critical_path(prng, tree_buf);
@@ -218,13 +219,12 @@ impl RootedTree {
 
         let mut m = 0;
         let mut i = 0;
-        let mut edges = Vec::with_capacity(self.n -1);
         while m < n2 - 1 {
             let [u, v] = possible_edges[i];
 
             if uf.find(u) != uf.find(v) {
                 uf.union(u, v);
-                edges.push([u, v]);
+                tree_buf.add_edge_unckecked(u, v);
                 m += 1;
             }
 
@@ -234,12 +234,11 @@ impl RootedTree {
         for (u, children) in self.children.iter().enumerate() {
             for &v in children.iter() {
                 if !covered_vertices[u] || !covered_vertices[v] {
-                    edges.push([u, v]);
+                    tree_buf.add_edge_unckecked(u, v);
                 }
             }
         }
 
-        tree_buf.update_from_edges(&edges);
 
 
         
