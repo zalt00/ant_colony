@@ -3,7 +3,14 @@ use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 
-use crate::{distorsion_heuristics::constants, graph::{MatGraph, RootedTree}, graph_core::GraphCore, graph_generator::GraphRng, my_rand::{my_rand, Prng}, neighborhood::NeighborhoodStrategies, trace::TraceData, utils::TarjanSolver};
+use crate::utils::TarjanSolver;
+use crate::trace::TraceData;
+use crate::neighborhood::NeighborhoodStrategies;
+use crate::my_rand::{my_rand, Prng};
+use crate::graph_generator::GraphRng;
+use crate::graph_core::GraphCore;
+use crate::graph::RootedTree;
+use crate::distorsion_heuristics::constants;
 
 
 
@@ -37,10 +44,10 @@ impl<T: GraphCore+GraphRng> SA<T> {
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
         let n = g.vertex_count();
-
+        let tarjan_solver = TarjanSolver::new(n, &g);
         let tree_buf = g.clone_empty();
         SA { n, g, tree_buf,
-            tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
+            tarjan_solver, edges, prng, edge_betweeness_centrality,
             k: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES, temperature: 1.0, _coef: 1.,
             dist_matrix }
 
@@ -144,7 +151,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
             //println!("elapsed: {}", elapsed.as_secs_f64());
 
         }
-        let d = best_approx_tree.distorsion::<T>(&self.dist_matrix);
+        let d = best_approx_tree.distorsion::<T>(&self.g, &self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
         (d, trace)
     }
@@ -195,7 +202,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
             //println!("elapsed: {}", elapsed.as_secs_f64());
 
         }
-        let d = best_approx_tree.distorsion::<T>(&self.dist_matrix);
+        let d = best_approx_tree.distorsion::<T>(&self.g, &self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
         (d, trace)
     }

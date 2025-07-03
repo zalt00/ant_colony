@@ -1,5 +1,5 @@
 
-use crate::{graph::{MatGraph, RootedTree}, graph_core::GraphCore as _};
+use crate::{compressed_graph::init_compressed_vecvec, graph::{MatGraph, RootedTree}, graph_core::GraphCore};
 
 pub struct SegmentTree (Vec<f64>);
 
@@ -167,27 +167,31 @@ pub struct TarjanSolver {
     uf: Uf,
     mark: Vec<bool>,
     ancestors: Vec<usize>,
-    results: Vec<usize>
+    results: Vec<usize>,
+    results_idx: Vec<usize>
 }
 
 impl TarjanSolver {
 
     #[cfg(feature = "need_tarjan")]
-    pub fn new(n: usize) -> TarjanSolver {
-        TarjanSolver { n, uf: Uf::init(n), mark: vec![false; n], ancestors: vec![0; n], results: vec![0; n*n] }
+    pub fn new<T: GraphCore>(n: usize, g: &T) -> TarjanSolver {
+        let (results_idx, results) = g.get_edges_compressed_vecvec(0_usize);
+ 
+        TarjanSolver { n, uf: Uf::init(n), mark: vec![false; n], ancestors: vec![0; n], results, results_idx }
     }
 
     #[cfg(not(feature = "need_tarjan"))]
-    pub fn new(n: usize) -> TarjanSolver {
-        TarjanSolver { n, uf: Uf::init(0), mark: vec![], ancestors: vec![], results: vec![] }
+    pub fn new<T: GraphCore>(n: usize, _g: &T) -> TarjanSolver {
+        TarjanSolver { n, uf: Uf::init(0), mark: vec![], ancestors: vec![], results: vec![], results_idx: vec![] }
     }
 
     fn reset(&mut self) {
         self.uf.reset();
         self.mark.fill(false);
+        self.results.fill(usize::MAX);
     }
 
-    fn _launch_from(&mut self, u: usize, tree: &RootedTree, g: &MatGraph) {
+    fn _launch_from<T: GraphCore>(&mut self, u: usize, tree: &RootedTree, g: &T) {
         self.ancestors[u] = u;
         for v in tree.get_children(u) {
             self._launch_from(*v, tree, g);
@@ -205,26 +209,25 @@ impl TarjanSolver {
         }
         self.mark[u] = true;
 
-        for v in g.get_neighbors(u) {
+        for (i, v) in g.get_neighbors(u).iter().enumerate() {
             if self.mark[*v] {
                 let lca = self.ancestors[self.uf.find(*v).unwrap() as usize];
-                self.results[u + self.n * v] = lca;
-                self.results[v + self.n * u] = lca;
+                self.results[self.results_idx[u] + i] = lca;
             }
         }
     }
 
-    pub fn launch(&mut self, tree: &RootedTree, g: &MatGraph) -> &Vec<usize> {
+    pub fn launch<T: GraphCore>(&mut self, tree: &RootedTree, g: &T) -> (&Vec<usize>, &Vec<usize>) {
         if cfg!(not(feature = "need_tarjan")) {panic!()};
 
         self.reset();
         self._launch_from(tree.get_root(), tree, g);
 
-        &self.results
+        (&self.results_idx, &self.results)
     }
 
-    pub fn get_results(&self) -> &Vec<usize> {
-        &self.results
+    pub fn get_results(&self) -> (&Vec<usize>, &Vec<usize>) {
+        (&self.results_idx, &self.results)
     }
 
 

@@ -34,7 +34,7 @@ pub trait GraphRng: GraphCore {
     }
 
     fn random_graph(n: usize, m: usize, prng: &mut Prng) -> Self where Self: Sized {
-        let mut t = Self::random_tree(n, prng);
+        let t = Self::random_tree(n, prng);
 
         let mut adj_mat = vec![false; n*n];
         for [u, v] in t.get_edges() {

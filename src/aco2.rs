@@ -11,7 +11,7 @@ use crate::my_rand::Prng;
 use crate::neighborhood::VNS;
 use crate::trace::TraceData;
 use crate::utils::{SegmentTree, TarjanSolver};
-use crate::{graph::{MatGraph, RootedTree}, my_rand::my_rand};
+use crate::{graph::RootedTree, my_rand::my_rand};
 
 
 pub struct ACO2<T: GraphCore+GraphRng> {
@@ -62,7 +62,7 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
 
         let covered_vertices = vec![false; n];
 
-        let tarjan_solver = TarjanSolver::new(n);
+        let tarjan_solver = TarjanSolver::new(n, &g);
 
         let mut edge_to_index = vec![usize::MAX; n*n];
         for (ei, &[u, v]) in edges.iter().enumerate() {
@@ -233,7 +233,7 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
                 if elapsed.as_secs_f64() >= recheck_every * (recheck_count + 1) as f64 {
                     recheck_count += 1;
 
-                    let disto = cur_best_tree.distorsion::<T>(&self.dist_matrix);
+                    let disto = cur_best_tree.distorsion::<T>(&self.g, &self.dist_matrix);
                     if disto < tot_real_disto {
                         tot_real_disto = disto;
                         tot_best_tree = cur_best_tree.clone();
@@ -345,7 +345,7 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
 
         }
 
-        (cur_best_tree.distorsion::<T>(&self.dist_matrix), trace)
+        (cur_best_tree.distorsion::<T>(&self.g, &self.dist_matrix), trace)
     }
 }
 

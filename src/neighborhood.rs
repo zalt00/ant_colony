@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
-use crate::{counters, distorsion_heuristics::{constants, Num}, graph::{RootedTree, N}, graph_core::{ GraphCore}, graph_generator::GraphRng, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
+use crate::{counters, distorsion_heuristics::{constants, Num}, graph::RootedTree, graph_core::{ GraphCore}, graph_generator::GraphRng, my_rand::Prng, trace::TraceData, utils::{TarjanSolver, Uf}};
 
 
 impl RootedTree {
@@ -294,10 +294,10 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         let prng = Prng::seed_from_u64(seed_u64);
         let edges = g.get_edges();
         let n = g.vertex_count();
-
+        let tarjan_solver = TarjanSolver::new(n, &g);
         let tree_buf = g.clone_empty();
         VNS { n, g, tree_buf,
-            tarjan_solver: TarjanSolver::new(n), edges, prng, edge_betweeness_centrality,
+            tarjan_solver, edges, prng, edge_betweeness_centrality,
             k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
             neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix }
 
@@ -436,7 +436,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                 // descente
                 let (x2, xdist2) = self.vnd(y, ydist);
                 if recompute_dist {
-                    let x2_real_dist = x2.distorsion::<T>(&self.dist_matrix);
+                    let x2_real_dist = x2.distorsion::<T>(&self.g, &self.dist_matrix);
 
                     // update
                     if x2_real_dist < x_real_dist &&
@@ -466,7 +466,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
         }
 
-        if !recompute_dist {x_real_dist = x.distorsion::<T>(&self.dist_matrix)};
+        if !recompute_dist {x_real_dist = x.distorsion::<T>(&self.g, &self.dist_matrix)};
         (x, xdist, x_real_dist, trace)
     }
 

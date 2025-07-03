@@ -1,6 +1,3 @@
-#[cfg(feature = "mean_path_heuristic")]
-use crate::graph_core::GraphCore;
-#[cfg(not(feature = "use_heuristic"))]
 use crate::graph_core::GraphCore;
 use crate::{graph::MatGraph, utils::TarjanSolver};
 use crate::graph::RootedTree;
@@ -51,27 +48,32 @@ impl RootedTree {
     }
 
     #[cfg(feature = "stretch_heuristic")]
-    pub fn heuristic<T: GraphCore>(&self, g: &T, edges: &Vec<[usize; 2]>,
+    pub fn heuristic<T: GraphCore>(&self, g: &T, _edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, _dm: &Vec<u32>) -> Num {
 
-        let lca = tarjan_solver.launch(self, g);
+        let (lca_idx, lca) = tarjan_solver.launch(self, g);
 
         let mut s = 0.0;
+        for u in 0..self.n {
+            for (i, &v) in g.get_neighbors(u).iter().enumerate() {
+                let l = lca[lca_idx[u] + i];
+                if l < usize::MAX {
+                    s += (self.depths[u] + self.depths[v] - 2*self.depths[l]) as f64;
 
-        for &[u, v] in edges {
-            let i = u + self.n * v;
-            s += (self.depths[u] + self.depths[v] - 2*self.depths[lca[i]]) as f64;
+                }
+            }
         }
+
 
 
         s / self.n as f64 / (self.n - 1) as f64
     }
 
     #[cfg(not(feature = "use_heuristic"))]
-    pub fn heuristic<T: GraphCore>(&self, _g: &T, _edges: &Vec<[usize; 2]>,
+    pub fn heuristic<T: GraphCore>(&self, g: &T, _edges: &Vec<[usize; 2]>,
             _tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, dm: &Vec<u32>) -> Num {
 
-        self.distorsion::<T>(dm)
+        self.distorsion::<T>(g, dm)
     }
 
     #[cfg(feature = "mean_path_heuristic")]
@@ -165,20 +167,20 @@ impl RootedTree {
         
     }
 
-    pub fn slow_disto_approx(&self, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
-        let mut t: MatGraph = self.to_graph();
+    pub fn slow_disto_approx(&self, g: &MatGraph, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
+        let mut t: MatGraph = self.to_graph(g);
 
         t.distorsion_approx(&mut t.get_dist_matrix(), edges, ebc)
     }
-
-    pub fn distorsion<T: GraphCore>(&self, dm: &Vec<u32>) -> f64 {
-        let t: T = self.to_graph();
+ 
+    pub fn distorsion<T: GraphCore>(&self, g: &T, dm: &Vec<u32>) -> f64 {
+        let t: T = self.to_graph(g);
 
         t.distorsion(&mut vec![u32::MAX; self.n*self.n], &dm)
     }
 
-    pub fn s22_slow(&self) -> f64 {
-        let t: MatGraph = self.to_graph();
+    pub fn s22_slow(&self, g: &MatGraph) -> f64 {
+        let t: MatGraph = self.to_graph(g);
 
         t.s22_slow(&mut t.get_dist_matrix())
     }

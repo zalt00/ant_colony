@@ -1,4 +1,3 @@
-use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
@@ -268,7 +267,7 @@ fn main() {
                     for _ in 0..10 {
                         let t = g.random_subtree(&mut prng);
                         let dhu = t.new_disto_approx();
-                        let d = t.distorsion::<MatGraph>(&dm);
+                        let d = t.distorsion::<MatGraph>(&g, &dm);
 
                         let dh = dhu as f64 / (g.n as f64 * (g.n - 1) as f64) / m * 2.0;// * 1.0537940243214428; 
                         
@@ -286,12 +285,17 @@ fn main() {
 
 
                     let gdt = &data.samples[6];
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
                     println!("label={}", gdt.label);
 
                     // let t = g.random_subtree(&mut prng);
                     // println!("{}", t.new_disto_approx());
                     // println!("{}", t.s22_slow());
+
+                    let t = g.clone().random_subtree(&mut prng);
+                    let mut ts = TarjanSolver::new(g.n, &g);
+                    println!("heuristique: {}", t.heuristic(&g, &vec![], &mut ts, &vec![], &vec![]));
+
 
                     let mut vns: VNS<MatGraph> = VNS::new(g, 123, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
@@ -344,7 +348,7 @@ fn main() {
 
                         let mut gdt = GraphData::from_graph(&g, false, false);
                         let dm = g.get_dist_matrix();
-                        let d = trooted.distorsion::<MatGraph>(&dm);
+                        let d = trooted.distorsion::<MatGraph>(&g, &dm);
 
                         gdt.label = format!("data/clique_cycle{}-{}", k, l);
 
@@ -377,7 +381,7 @@ fn main() {
 
                     let mut prng = Prng::seed_from_u64(987);
                     let edges = &g.get_edges();
-                    let tarjan_solver= &mut TarjanSolver::new(g.n);
+                    let tarjan_solver= &mut TarjanSolver::new(g.n, &g);
                     
                     for _ in 0..1000 {
                         let t1 = g.random_subtree(&mut prng);
@@ -385,8 +389,8 @@ fn main() {
                         let da1 = t1.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
                         let da2 = t2.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
 
-                        let d1 = t1.distorsion::<MatGraph>(&dm);
-                        let d2 = t2.distorsion::<MatGraph>(&dm);
+                        let d1 = t1.distorsion::<MatGraph>(&g, &dm);
+                        let d2 = t2.distorsion::<MatGraph>(&g, &dm);
 
                         if (da1 < da2 && d1 > d2) || (da1 > da2 && d1 < d2) {
                             _pas_cool += 1;
@@ -407,7 +411,7 @@ fn main() {
 
                     let mut t = g.random_subtree(&mut prng);
                     t.update_parents();
-                    t.to_graph::<CompressedGraph>().to_dot("tree.dot");
+                    t.to_graph(&g).to_dot("tree.dot");
 
                     // while !t.edge_swap_random(&mut prng, &g.get_edges()) {};
 
@@ -516,7 +520,7 @@ fn main() {
                     let dm = g.get_dist_matrix();
                     let ebc = g.get_edge_betweeness_centrality();
 
-                    println!("disto: {}", rooted_tree.distorsion::<MatGraph>(&dm));
+                    println!("disto: {}", rooted_tree.distorsion::<MatGraph>(&g, &dm));
 
                     let mut vns = VNS::new(g, 1203, ebc, dm, 0);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);

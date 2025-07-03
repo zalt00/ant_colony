@@ -2,9 +2,8 @@ use std::usize;
 use std::{fmt::Debug, u32};
 
 use rustworkx_core::petgraph;
-use rustworkx_core::petgraph::visit::{EdgeIndexable, NodeIndexable};
 
-use crate::compressed_graph::CompressedGraph;
+use crate::compressed_graph::{init_compressed_vecvec, init_compressed_vecvec_idx};
 use crate::graph_core::GraphCore;
 use crate::graph_generator::GraphRng;
 
@@ -55,10 +54,6 @@ impl MatGraph {
 
         }
         g
-    }
-
-    pub fn get_neighboor_count_unchecked(&self, i: usize) -> usize {
-        self.adj_tab[i * self.n]
     }
 
 
@@ -119,40 +114,6 @@ impl MatGraph {
             g.add_edge_unckecked(i, j); 
         }
         Some((disto, g))
-    }
-
-    pub fn bfs(&self, u: usize, dist_matrix: &mut Vec<u32>) {
-        static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
-        
-        if dist_matrix[u + self.n * u] != u32::MAX {
-            return
-        }
-
-        unsafe{QUEUE[0] = (u, 0)};
-
-        let mut visited = vec![false; self.n];
-        visited[u] = true;
-
-        let mut i = 0;
-        let mut j = 1;
-
-        while i < j {
-            unsafe{
-                let (v, d) = QUEUE[i];
-                dist_matrix[u + self.n * v] = d;
-                dist_matrix[v + self.n * u] = d;
-
-                i += 1;
-
-                for &nv in self.get_neighbors(v) {
-                    if !visited[nv] {
-                        visited[nv] = true;
-                        QUEUE[j] = (nv, d + 1);
-                        j += 1;
-                    }
-                }
-            }
-        }
     }
 
 
@@ -251,45 +212,17 @@ impl GraphCore for MatGraph {
         g
     }
     
-    fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
-        self.clear();
-        for &[u, v] in edges {
-            self.add_edge_unckecked(u, v);
-        }
-    }
+    // fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
+    //     self.clear();
+    //     for &[u, v] in edges {
+    //         self.add_edge_unckecked(u, v);
+    //     }
+    // }
     
     fn clone_empty(&self) -> Self {
         Self::new_empty(self.n)
     }
-
-    fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {
-        dist_matrix.fill(u32::MAX);
-        for u in 0..self.n {
-            self.bfs(u, dist_matrix);
-        }
-    }
     
-    fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
-        use rustworkx_core::petgraph;
-        use rustworkx_core::centrality::edge_betweenness_centrality;
-
-        let g = petgraph::graph::UnGraph::<usize, ()>::from_edges(self.get_edges_tpl());
-        
-        let output = edge_betweenness_centrality(&g, false, 500000);
-        let mut mat = vec![0.0; self.n*self.n];
-
-        for i in g.edge_indices() {
-            let endpoints = g.edge_endpoints(i).unwrap();
-            let bt = output[EdgeIndexable::to_index(&g, i)].unwrap();
-            let u = NodeIndexable::to_index(&g, endpoints.0);
-            let v = NodeIndexable::to_index(&g, endpoints.1);
-
-            mat[u + self.n * v] = bt;
-            mat[v + self.n * u] = bt;
-        }
-
-        mat
-    }
     
     fn add_edge_unckecked(&mut self, i: usize, j: usize) {
         let li = self.get_neighboor_count_unchecked(i);
@@ -305,8 +238,16 @@ impl GraphCore for MatGraph {
         self.clear();
     }
     
-    fn new_empty(n: usize) -> MatGraph {
-        MatGraph::new_empty(n)
+    fn get_neighboor_count_unchecked(&self, i: usize) -> usize {
+        self.adj_tab[i * self.n]
+    }
+    
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>) {
+        let mut degrees = vec![0; self.n];
+        for u in 0..self.n {
+            degrees[u] = self.get_neighboor_count_unchecked(u);
+        }
+        init_compressed_vecvec(init_value, self.n, &degrees)
     }
 
 
@@ -397,8 +338,8 @@ impl RootedTree {
         }
     }
 
-    pub fn to_graph<T: GraphCore>(&self) -> T {
-        let mut g = T::new_empty(self.n);
+    pub fn to_graph<T: GraphCore>(&self, template: &T) -> T {
+        let mut g = template.clone_empty();
         for (u, children) in self.children.iter().enumerate() {
             for v in children.iter() {
                 g.add_edge_unckecked(u, *v);

@@ -18,7 +18,7 @@ debug = true
 overflow-checks = false
 
 [features]
-default = []
+default = ["stretch_heuristic"]
 use_heuristic = []
 need_ebc = []
 need_tarjan = []

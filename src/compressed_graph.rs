@@ -14,8 +14,16 @@ pub fn init_compressed_vecvec<T: Clone+Copy>(init_value: T, n: usize, degrees: &
         let data = vec![init_value; s];
 
         (idx, data)
+    }
 
+pub fn init_compressed_vecvec_idx(n: usize, degrees: &Vec<usize>) 
+    -> Vec<usize> {
+        let mut idx = vec![0; n];
+        for i in 1..n {
+            idx[i] = idx[i-1] + degrees[i-1];
+        }
 
+        idx
     }
 
 #[derive(Clone)]
@@ -27,9 +35,9 @@ pub struct CompressedGraph {
 }
 
 impl CompressedGraph {
-    pub fn new(n: usize, degrees: Vec<usize>) -> CompressedGraph {
+    pub fn new(n: usize, degrees: &Vec<usize>) -> CompressedGraph {
         let (idx, data) = init_compressed_vecvec(usize::MAX, n, &degrees);
-        CompressedGraph { n, idx, data, degrees }
+        CompressedGraph { n, idx, data, degrees: vec![0; n] }
     }
 
 
@@ -37,6 +45,12 @@ impl CompressedGraph {
         self.data.len()
     }
 
+    fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
+        // no clear
+        for &[u, v] in edges {
+            self.add_edge_unckecked(u, v);
+        }
+    }
     
 }
 
@@ -57,46 +71,35 @@ impl GraphCore for CompressedGraph {
             degrees[v] += 1;
         }
 
-        let mut g = Self::new(n, degrees);
+        let mut g = Self::new(n, &degrees);
         g.update_from_edges(edges);
         g
     }
     
-    fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
-        let mut cur_deg = vec![0; self.n];
-
-        for &[u, v] in edges {
-            self.data[self.idx[u] + cur_deg[u]] = v;
-            cur_deg[u] += 1;
-
-            self.data[self.idx[v] + cur_deg[v]] = u;
-            cur_deg[v] += 1;
-        }
-    }
-    
     fn clone_empty(&self) -> Self {
-        Self::new(self.n, self.degrees.clone())
-    }
-    
-    fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {
-        todo!()
-    }
-    
-    fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
-        todo!()
+        Self::new(self.n, &self.degrees)
     }
     
     fn add_edge_unckecked(&mut self, u: usize, v: usize) {
-        todo!()
-    }
+        self.data[self.idx[u] + self.degrees[u]] = v;
+        self.degrees[u] += 1;
+
+        self.data[self.idx[v] + self.degrees[v]] = u;
+        self.degrees[v] += 1;    }
     
     fn reset(&mut self) {
-        todo!()
+        self.degrees.fill(0);
     }
     
-    fn new_empty(n: usize) -> Self {
-        todo!()
+    fn get_neighboor_count_unchecked(&self, i: usize) -> usize {
+        self.degrees[i]
     }
+    
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>) {
+        println!("wee");
+        init_compressed_vecvec(init_value, self.n, &self.degrees)
+    }
+
 
 }
 
