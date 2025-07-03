@@ -7,8 +7,8 @@ use crate::utils::TarjanSolver;
 use crate::trace::TraceData;
 use crate::neighborhood::NeighborhoodStrategies;
 use crate::my_rand::{my_rand, Prng};
-use crate::graph_generator::GraphRng;
-use crate::graph_core::GraphCore;
+use crate::graph::graph_generator::GraphRng;
+use crate::graph::graph_core::GraphCore;
 use crate::graph::RootedTree;
 use crate::distorsion_heuristics::constants;
 

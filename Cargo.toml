@@ -14,7 +14,7 @@ bincode = "*"
 glob = "*"
 
 [profile.release]
-debug = true
+debug = false
 overflow-checks = false
 
 [features]

@@ -4,6 +4,12 @@ pub trait GraphCore: Clone {
     fn get_neighbors(&self, i: usize) -> &[usize];
     fn get_neighboor_count_unchecked(&self, i: usize) -> usize;
     fn vertex_count(&self) -> usize;
+    fn from_edges(n: usize, edges: &Vec<[usize; 2]>) -> Self;
+    fn add_edge_unckecked(&mut self, u: usize, v: usize);
+    fn reset(&mut self);
+    fn clone_empty(&self) -> Self;
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>);
+
 
     fn get_edges(&self) -> Vec<[usize; 2]> {
         let mut edges = vec![];
@@ -31,13 +37,7 @@ pub trait GraphCore: Clone {
         edges
     }
 
-    fn from_edges(n: usize, edges: &Vec<[usize; 2]>) -> Self;
-    fn add_edge_unckecked(&mut self, u: usize, v: usize);
-    fn reset(&mut self);
 
-    //fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>);
-
-    fn clone_empty(&self) -> Self;
 
     fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {
         dist_matrix.fill(u32::MAX);
@@ -167,6 +167,5 @@ pub trait GraphCore: Clone {
         }
     }
 
-    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>);
 }
 

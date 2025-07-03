@@ -1,4 +1,4 @@
-use crate::graph_core::GraphCore;
+use crate::graph::graph_core::GraphCore;
 use crate::{graph::MatGraph, utils::TarjanSolver};
 use crate::graph::RootedTree;
 

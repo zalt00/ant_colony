@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 use crate::distorsion_heuristics::{constants, Num};
-use crate::graph_core::GraphCore;
-use crate::graph_generator::GraphRng;
+use crate::graph::graph_core::GraphCore;
+use crate::graph::graph_generator::GraphRng;
 use crate::my_rand::Prng;
 
-use crate::neighborhood::VNS;
+use crate::vns::VNS;
 use crate::trace::TraceData;
 use crate::utils::{SegmentTree, TarjanSolver};
 use crate::{graph::RootedTree, my_rand::my_rand};

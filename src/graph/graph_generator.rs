@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
-use crate::graph_core::GraphCore;
+use crate::graph::graph_core::GraphCore;
 use crate::my_rand::Prng;
 use crate::{graph::{MatGraph, RootedTree}, utils::Uf};
 
@@ -35,22 +36,24 @@ pub trait GraphRng: GraphCore {
 
     fn random_graph(n: usize, m: usize, prng: &mut Prng) -> Self where Self: Sized {
         let t = Self::random_tree(n, prng);
-
-        let mut adj_mat = vec![false; n*n];
-        for [u, v] in t.get_edges() {
-            adj_mat[u + n * v] = true;
-            adj_mat[v + n * u] = true;
-        }
         let mut edges = Vec::with_capacity(m);
-        edges.append(&mut t.get_edges().clone());
-        for _ in 0..m {
+
+        let mut adj_mat = HashSet::with_capacity(m);
+        for [u, v] in t.get_edges() {
+            adj_mat.insert([u.min(v), u.max(v)]);
+            edges.push([u.min(v), u.max(v)])
+        }
+        for _iter_id in 0..m {
+            if _iter_id % 1000000 == 0 {
+                println!("{}M/{}M", _iter_id / 1000000, m/1000000);
+            }
             let u = (prng.next_u64() % n as u64) as usize;
             let v = (prng.next_u64() % n as u64) as usize;
             //println!("{} {}", u, v);
-            if !adj_mat[u + n * v] && u != v {
-                edges.push([u, v]);
-                adj_mat[u + n * v] = true;
-                adj_mat[v + n * u] = true;
+            let e = [u.min(v), u.max(v)];
+            if !adj_mat.contains(&e) && u != v {
+                edges.push(e);
+                adj_mat.insert(e);
             }
         }
 

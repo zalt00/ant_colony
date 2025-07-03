@@ -1,7 +1,7 @@
 use core::f64;
 
 
-use crate::{graph::MatGraph, graph_core::GraphCore, graph_generator::GraphRng};
+use crate::{graph::MatGraph, graph::graph_core::GraphCore, graph::graph_generator::GraphRng};
 
 #[derive(PartialEq, PartialOrd)]
 struct ComparableFloat(f64);

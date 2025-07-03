@@ -1,3 +1,4 @@
+use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
@@ -8,13 +9,13 @@ use rand::{RngCore, SeedableRng};
 use crate::aco2::ACO2;
 use crate::annealing::SA;
 use crate::compressed_graph::CompressedGraph;
-use crate::graph_core::GraphCore;
+use crate::graph::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
-use crate::neighborhood::VNS;
+use crate::vns::VNS;
 use crate::my_rand::{random_permutation, Prng};
 use crate::greedy::greedy_ebc_delete_no_recompute;
-use crate::graph_generator::{Data, GraphData, GraphRng};
+use crate::graph::graph_generator::{Data, GraphData, GraphRng};
 use crate::graph::print_counters;
 use crate::graph::RootedTree;
 use crate::graph::MatGraph;
@@ -27,7 +28,6 @@ pub mod my_rand;
 pub mod greedy;
 pub mod aco2;
 pub mod utils;
-pub mod graph_generator;
 pub mod config;
 pub mod neighborhood;
 pub mod annealing;
@@ -35,7 +35,7 @@ pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
 pub mod compressed_graph;
-pub mod graph_core;
+pub mod vns;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
@@ -285,7 +285,7 @@ fn main() {
 
 
                     let gdt = &data.samples[6];
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     println!("label={}", gdt.label);
 
                     // let t = g.random_subtree(&mut prng);
@@ -293,20 +293,27 @@ fn main() {
                     // println!("{}", t.s22_slow());
                     {
                         let mut prng = Prng::seed_from_u64(1234);
-                        let g = CompressedGraph::random_graph(1000, 20000, &mut prng);
-                        let ebc = g.get_edge_betweeness_centrality();
+                        println!("generating graph");
+                        let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
+                        let ebc = vec![]; //g.get_edge_betweeness_centrality();
+                        println!("ts");
+
                         let mut ts = TarjanSolver::new(g.n, &g);
                         println!("m {}", g.get_edges().len());
-                        let dm = g.get_dist_matrix();
+                        //let dm = g.get_dist_matrix();
 
                         for _ in 0..10 {
-                            let t = g.clone().random_subtree(&mut prng);
-                            println!("heuristique: {}", t.heuristic(&g, &g.get_edges(), &mut ts, &ebc, &vec![]));
-                            println!("disto: {}", t.distorsion(&g, &dm));
+            
+                            let t = g.random_subtree(&mut prng);
+                            println!("computing heuristic");
+                            let now = Instant::now();
+                            let heur = t.heuristic(&g, &vec![], &mut ts, &ebc, &vec![]);
+                            println!("heuristique: {}, elapsed: {:?}", heur, now.elapsed());
+                            //println!("disto: {}", t.distorsion(&g, &dm));
                         }
                     }
 
-                    let mut vns: VNS<MatGraph> = VNS::new(g, 123, ebc, dm, 2);
+                    let mut vns = VNS::new(g, 123, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
                     
                     println!("{}", d.0);

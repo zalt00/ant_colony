@@ -3,9 +3,12 @@ use std::{fmt::Debug, u32};
 
 use rustworkx_core::petgraph;
 
-use crate::compressed_graph::{init_compressed_vecvec, init_compressed_vecvec_idx};
-use crate::graph_core::GraphCore;
-use crate::graph_generator::GraphRng;
+pub mod graph_core;
+pub mod graph_generator; 
+
+use crate::compressed_graph::init_compressed_vecvec;
+use self::graph_core::GraphCore;
+use self::graph_generator::GraphRng;
 
 
 pub const N: usize = 50000;
@@ -65,17 +68,7 @@ impl MatGraph {
     pub fn decr_neighboor_count_unchecked(&mut self, i: usize) {
         self.adj_tab[i * self.n] -= 1;
     }
-
-    // pub fn add_edge_unckecked(&mut self, i: usize, j: usize) {
-    //     let li = self.get_neighboor_count_unchecked(i);
-    //     self.adj_tab[i * self.n + 1 + li as usize] = j;
-    //     self.incr_neighboor_count_unchecked(i);
-
-    //     let lj = self.get_neighboor_count_unchecked(j);
-    //     self.adj_tab[j * self.n + 1 + lj as usize] = i;
-    //     self.incr_neighboor_count_unchecked(j);
-    // }
-
+    
     pub fn remove_edge_last_added_unckecked(&mut self, i: usize, j: usize) {
         self.decr_neighboor_count_unchecked(i);
         self.decr_neighboor_count_unchecked(j);

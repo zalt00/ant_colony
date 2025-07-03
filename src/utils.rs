@@ -1,5 +1,5 @@
 
-use crate::{compressed_graph::init_compressed_vecvec, graph::{MatGraph, RootedTree}, graph_core::GraphCore};
+use crate::{graph::RootedTree, graph::graph_core::GraphCore};
 
 pub struct SegmentTree (Vec<f64>);
 
@@ -163,7 +163,7 @@ impl Uf {
 }
 
 pub struct TarjanSolver {
-    n: usize,
+    pub n: usize,
     uf: Uf,
     mark: Vec<bool>,
     ancestors: Vec<usize>,

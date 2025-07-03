@@ -1,4 +1,4 @@
-use crate::{graph_core::GraphCore, graph_generator::GraphRng};
+use crate::{graph::graph_core::GraphCore, graph::graph_generator::GraphRng};
 
 
 
