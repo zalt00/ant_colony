@@ -1,4 +1,4 @@
-use crate::graph::N;
+use crate::{graph::N, my_rand::Prng};
 
 pub trait GraphCore: Clone {
     fn get_neighbors(&self, i: usize) -> &[usize];
@@ -165,6 +165,37 @@ pub trait GraphCore: Clone {
                 }
             }
         }
+    }
+
+
+
+    fn clustering(&self) -> (Vec<usize>, Vec<usize>) {
+        let mut c = 0;
+        let mut cv = vec![usize::MAX; self.vertex_count()];
+        let mut csizes = vec![0];
+
+        let mut vertices = (0..self.vertex_count()).collect::<Vec<usize>>();
+        vertices.sort_by_key(|v| {self.get_neighboor_count_unchecked(*v)});
+
+        for v in vertices.iter().rev() {
+            if cv[*v] == usize::MAX {
+                cv[*v] = c;
+                csizes[c] += 1;
+                for u in self.get_neighbors(*v) {
+                    if cv[*u] == usize::MAX {
+                        cv[*u] = c;
+                        csizes[c] += 1;
+                    }
+                }
+                c += 1;
+                csizes.push(0);
+            }
+        }
+
+        (cv, csizes)
+
+
+
     }
 
 }

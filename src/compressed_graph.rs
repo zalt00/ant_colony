@@ -1,4 +1,4 @@
-use crate::{graph::graph_core::GraphCore, graph::graph_generator::GraphRng};
+use crate::{graph::{graph_core::GraphCore, graph_generator::GraphRng}, my_rand::Prng};
 
 
 
@@ -99,6 +99,8 @@ impl GraphCore for CompressedGraph {
         println!("wee");
         init_compressed_vecvec(init_value, self.n, &self.degrees)
     }
+
+
 
 
 }

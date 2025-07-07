@@ -12,6 +12,9 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 bincode = "*"
 glob = "*"
+pyo3 = { version = "0.25.1", features = ["extension-module"] }
+
+
 
 [profile.release]
 debug = false
@@ -27,4 +30,14 @@ stretch_heuristic = ["use_heuristic", "need_tarjan"]
 mean_path_heuristic = ["use_heuristic"]
 verbose = []
 enable_counters = []
+
+[lib]
+name = "mylib"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "mybin"
+path = "src/main.rs"
+
 

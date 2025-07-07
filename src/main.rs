@@ -218,6 +218,9 @@ fn main() {
             AntColonyProfile {c: 8000.0, evap: 0.4, seed: 123, w: 0.5, k: 10, ic: 600}
         ));
 
+        profiles.insert("clustering_test".to_string(), Profile::ClusteringTest);
+
+
         let cfg = Config {profiles};
 
         serde_json::to_writer_pretty(File::create("config.json").expect("beuh"), &cfg).expect("bouuh");
@@ -230,13 +233,21 @@ fn main() {
             println!("% launching profile <{}>:", mode);
 
             match profile {
+                Profile::ClusteringTest => {
+                    let mut prng = Prng::seed_from_u64(1671);
+                    let g = CompressedGraph::random_graph(100000, 2000000, &mut prng);
+                    let d = g.clustering();
+                    println!("{:?}", d.1.len());
+                    println!("{}", d.1.iter().map(|x|{x*x}).sum::<usize>())
+
+                },
                 Profile::NewDistoApprox => {
 
                     println!("loading samples...");
                     let data = Data::load("data/graph-benchmark-samples.data");
                     let mut prng = Prng::seed_from_u64(1671);
 
-
+                    
                     let g = MatGraph::random_graph(1000, 10000, &mut prng);
                     let dm = g.get_dist_matrix();
 
@@ -264,7 +275,7 @@ fn main() {
                     let mut rm = 0.0;
                     let mut rmax: f64 = 0.0;
                     let p = 0.37480394605905987;
-                    for _ in 0..10 {
+                    for _ in 0..0 {
                         let t = g.random_subtree(&mut prng);
                         let dhu = t.new_disto_approx();
                         let d = t.distorsion::<MatGraph>(&g, &dm);
@@ -291,29 +302,29 @@ fn main() {
                     // let t = g.random_subtree(&mut prng);
                     // println!("{}", t.new_disto_approx());
                     // println!("{}", t.s22_slow());
-                    {
-                        let mut prng = Prng::seed_from_u64(1234);
-                        println!("generating graph");
-                        let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
-                        let ebc = vec![]; //g.get_edge_betweeness_centrality();
-                        println!("ts");
+                    // {
+                    //     let mut prng = Prng::seed_from_u64(1234);
+                    //     println!("generating graph");
+                    //     let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
+                    //     let ebc = vec![]; //g.get_edge_betweeness_centrality();
+                    //     println!("ts");
 
-                        let mut ts = TarjanSolver::new(g.n, &g);
-                        println!("m {}", g.get_edges().len());
-                        //let dm = g.get_dist_matrix();
-
-                        for _ in 0..10 {
+                    //     let mut ts = TarjanSolver::new(g.n, &g);
+                    //     println!("m {}", g.get_edges().len());
+                    //     //let dm = g.get_dist_matrix();
+                        
+                    //     for _ in 0..10 {
             
-                            let t = g.random_subtree(&mut prng);
-                            println!("computing heuristic");
-                            let now = Instant::now();
-                            let heur = t.heuristic(&g, &vec![], &mut ts, &ebc, &vec![]);
-                            println!("heuristique: {}, elapsed: {:?}", heur, now.elapsed());
-                            //println!("disto: {}", t.distorsion(&g, &dm));
-                        }
-                    }
+                    //         let t = g.random_subtree(&mut prng);
+                    //         println!("computing heuristic");
+                    //         let now = Instant::now();
+                    //         let heur = t.heuristic(&g, &vec![], &mut ts, &ebc, &vec![]);
+                    //         println!("heuristique: {}, elapsed: {:?}", heur, now.elapsed());
+                    //         //println!("disto: {}", t.distorsion(&g, &dm));
+                    //     }
+                    // }
 
-                    let mut vns = VNS::new(g, 123, ebc, dm, 2);
+                    let mut vns = VNS::new(g, 1239, ebc, dm, 2);
                     let d = vns.gvns_random_start_nonapprox_timeout(20.0);
                     
                     println!("{}", d.0);

@@ -27,7 +27,9 @@ pub enum Profile {
 
     Benchmark,
 
-    NewDistoApprox
+    NewDistoApprox,
+
+    ClusteringTest
 }
 
 #[derive(Serialize, Deserialize)]
