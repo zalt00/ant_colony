@@ -1,14 +1,14 @@
-use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
 
 
+use crate::distorsion_heuristics::Num;
 use rand::{RngCore, SeedableRng};
 
 use crate::aco2::ACO2;
 use crate::annealing::SA;
-use crate::compressed_graph::CompressedGraph;
+use crate::graph::compressed_graph::CompressedGraph;
 use crate::graph::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
@@ -34,7 +34,6 @@ pub mod annealing;
 pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
-pub mod compressed_graph;
 pub mod vns;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
@@ -264,18 +263,43 @@ fn main() {
                         d_mean += deg as f64 / g.n as f64;
                     }
 
-                    println!("{} {}", d_max, d_mean);
+                    let s = dists[1..].iter().map(|x| {*x as f64}).sum::<f64>();
+
+                    println!("{}", dists[3] as f64 / s);
+                    println!("{} {}", s, g.n * (g.n - 1));
                     println!("{:?}", dists);
 
+                    let mut tree = g.random_subtree(&mut prng);
+
+                    let mut vns = VNS::new(g.clone(), 11, vec![], vec![], 2);
+                    let da = tree.new_disto_approx() as Num;
+                    tree = vns.vnd(tree, da).0;
+
+                    println!("disto: {}", tree.distorsion(&g, &dm));
+                    let dtild = tree.new_disto_approx() as f64 / 3.0 * 2.0 / s;
+                    
+                    let mut t_buf = g.clone_empty();
+                    let diam = tree.get_critical_path(&mut prng, &mut t_buf).len() as f64;
+                    println!("diam: {}", tree.get_critical_path(&mut prng, &mut t_buf).len());
+
+                    let mut term = 0.0;
+                    for k in 1..5 {
+                        if k != 3 {
+                            term += diam * (dists[k] as f64) / k as f64 / s;
+                        }
+                    }
+
+                    let bound = dtild + term;
+                    println!("bound {} {} {}", bound, dtild, term);
 
                     let s: u32 = dm.iter().sum();
                     let m = s as f64 / g.n as f64 / (g.n - 1) as f64;
-                    println!("{}", m);
+                    println!("m={}", m);
 
                     let mut rm = 0.0;
                     let mut rmax: f64 = 0.0;
                     let p = 0.37480394605905987;
-                    for _ in 0..0 {
+                    for _ in 0..10 {
                         let t = g.random_subtree(&mut prng);
                         let dhu = t.new_disto_approx();
                         let d = t.distorsion::<MatGraph>(&g, &dm);
@@ -287,7 +311,7 @@ fn main() {
                         
                         let rh = d / dh2;
                         println!("{} {} {}", rh, dh, d);
-                        rm += dh2 / d;
+                        rm += dh / d;
                         rmax = rmax.max((d - dh).abs() / d); 
                     }
 
@@ -295,9 +319,9 @@ fn main() {
                     
 
 
-                    let gdt = &data.samples[6];
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
-                    println!("label={}", gdt.label);
+                    // let gdt = &data.samples[6];
+                    // let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    // println!("label={}", gdt.label);
 
                     // let t = g.random_subtree(&mut prng);
                     // println!("{}", t.new_disto_approx());
@@ -324,10 +348,10 @@ fn main() {
                     //     }
                     // }
 
-                    let mut vns = VNS::new(g, 1239, ebc, dm, 2);
-                    let d = vns.gvns_random_start_nonapprox_timeout(20.0);
+                    // let mut vns = VNS::new(g, 1239, ebc, dm, 2);
+                    // let d = vns.gvns_random_start_nonapprox_timeout(20.0);
                     
-                    println!("{}", d.0);
+                    // println!("{}", d.0);
                     counters::print_counters();
                     //g.to_dot("tree.dot");
                     //std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");

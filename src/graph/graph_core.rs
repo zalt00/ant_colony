@@ -1,6 +1,7 @@
-use crate::{graph::N, my_rand::Prng};
+use crate::graph::N;
 
 pub trait GraphCore: Clone {
+
     fn get_neighbors(&self, i: usize) -> &[usize];
     fn get_neighboor_count_unchecked(&self, i: usize) -> usize;
     fn vertex_count(&self) -> usize;

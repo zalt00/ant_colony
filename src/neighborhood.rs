@@ -127,6 +127,39 @@ impl RootedTree {
         true
     }
 
+
+    pub fn edge_swap(&mut self, prng: &mut Prng, edges: &Vec<[usize; 2]>, ei: usize) -> ([usize; 2], bool) {
+        // /!\ appeler update_parent avant
+
+        // pour tester, essayer d'enlever plus tard
+        //self.update_parents();
+
+        // println!("{:?}", edges[ei]);
+        let dt = self.edge_removable_for_swap(ei, edges);
+        // println!("{:?}", dt);
+
+        let [resu, resv] = &dt;
+        if resu.len() == 0 {return ([0, 0], false);}
+        let k = resu.len() + resv.len() - 2;
+        let mut rk = (prng.next_u64() % k as u64) as usize;
+
+        let mut dtrmi = 0;
+        let mut dtothi = 1;
+        // println!("{:?} k={}  {}", dt, k, rk);
+
+        if rk >= resu.len() - 1 {
+            rk -= resu.len() - 1;
+            dtrmi = 1;
+            dtothi = 0;
+        }
+
+
+        self.do_the_edge_swap(&dt[dtrmi], &dt[dtothi], rk);
+
+        ([dt[dtrmi][rk], dt[dtrmi][rk + 1]], true)
+    }
+
+
     pub fn subtree_swap_with_edge<T: GraphCore>(&mut self, ei: usize, prng: &mut Prng,
         edges: &Vec<[usize; 2]>, g: &T, tree_buf: &mut T) -> bool
     {

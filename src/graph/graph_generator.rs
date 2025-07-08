@@ -44,7 +44,7 @@ pub trait GraphRng: GraphCore {
             edges.push([u.min(v), u.max(v)])
         }
         for _iter_id in 0..m {
-            if _iter_id % 1000000 == 0 {
+            if _iter_id % 1000000 == 0 && cfg!(feature="verbose") {
                 println!("{}M/{}M", _iter_id / 1000000, m/1000000);
             }
             let u = (prng.next_u64() % n as u64) as usize;

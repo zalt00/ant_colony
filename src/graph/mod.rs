@@ -5,8 +5,9 @@ use rustworkx_core::petgraph;
 
 pub mod graph_core;
 pub mod graph_generator; 
+pub mod compressed_graph;
 
-use crate::compressed_graph::init_compressed_vecvec;
+use self::compressed_graph::init_compressed_vecvec;
 use self::graph_core::GraphCore;
 use self::graph_generator::GraphRng;
 
@@ -33,6 +34,10 @@ pub struct MatGraph {
 pub static mut CHEPA: f64 = 0.0;
 
 impl MatGraph {
+    pub const fn new_really_empty() -> MatGraph {
+        MatGraph { n: 0, adj_tab: vec![] }
+    }
+
     pub fn new_empty(n: usize) -> MatGraph {
         MatGraph { n, adj_tab: vec![0; n*(n+1)] }
     }
@@ -261,6 +266,10 @@ pub struct RootedTree {
 }
 
 impl RootedTree {
+    pub const fn new_really_empty() -> RootedTree {
+        RootedTree { n: 0, children: vec![], root: 0, depths: vec![], parents: vec![] }
+    }
+
     pub fn new(n: usize, root: usize) -> RootedTree {
         let mut v = Vec::with_capacity(n);
         for _ in 0..n {
@@ -271,6 +280,13 @@ impl RootedTree {
         depths[root] = 0;
 
         RootedTree { n, children: v, root, depths, parents: vec![] }
+    }
+
+    pub fn has_edge(&self, u: usize, v: usize) -> bool {
+        if u >= self.n || v >= self.n {false}
+        else {
+            self.parents[u] == v || self.parents[v] == u
+        }
     }
 
 
