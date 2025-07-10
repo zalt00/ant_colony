@@ -6,7 +6,7 @@ use rustworkx_core::petgraph;
 pub mod graph_core;
 pub mod graph_generator; 
 pub mod compressed_graph;
-
+pub mod parent_tree;
 use self::compressed_graph::init_compressed_vecvec;
 use self::graph_core::GraphCore;
 use self::graph_generator::GraphRng;

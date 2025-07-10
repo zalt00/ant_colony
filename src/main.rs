@@ -5,6 +5,7 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 
 use crate::distorsion_heuristics::Num;
+use crate::graph::parent_tree::ParentTree;
 use pyo3::ffi::c_str;
 use pyo3::types::PyDict;
 use rand::{RngCore, SeedableRng};
@@ -439,15 +440,27 @@ fn main() {
 
                     //let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
                     //let mut t = g.random_subtree(&mut prng);
-                    let mut t = RootedTree::from_graph(&CompressedGraph::random_tree(10000000, &mut prng), 0);
-                    println!("root={}", t.root);
+                    let gt = CompressedGraph::random_tree(40000000, &mut prng);
 
+                    let now = Instant::now();
+                    let t = RootedTree::from_graph(&gt, 0);
+                    println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
                     let d3 = t.new_disto_approx();
                     println!("{} {:?}", d3, now.elapsed());
 
                     let now = Instant::now();
+                    let mut t = RootedTree::from_graph(&gt, 0);
+                    println!("graph gen {:?}", now.elapsed());
+                    let now = Instant::now();
                     t.update_parents();
+                    let d3 = t.new_disto_approx2();
+                    println!("{} {:?}", d3, now.elapsed());
+
+                    let now = Instant::now();
+                    let mut t = ParentTree::from_graph(&gt, 0);
+                    println!("graph gen {:?}", now.elapsed());
+                    let now = Instant::now();
                     let d3 = t.new_disto_approx2();
                     println!("{} {:?}", d3, now.elapsed());
 
