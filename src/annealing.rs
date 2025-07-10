@@ -58,7 +58,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
         use NeighborhoodStrategies::*;
         match self.neighborhood_strategies[i] {
             EdgeSwap => {
-                x.update_parents();  // todo cette chose n'a pas a exister
+                // ahah n'existe plus x.update_parents();  // todo cette chose n'a pas a exister
             },
             _ => ()
         }
@@ -109,7 +109,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
             let dist_previous = best_disto_approx;
             while self.temperature > step / 2.0 {
                 self.init_strategy(&mut cur_approx_tree, self.k);
-                let y = self.get_neighbor(&mut cur_approx_tree, self.k);
+                let mut y = self.get_neighbor(&mut cur_approx_tree, self.k);
                 //y.recompute_depths_rec(y.root, 0);
                 let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
@@ -174,7 +174,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
             let dist_previous = best_disto_approx;
             for _ in 0..2 {
                 self.init_strategy(&mut cur_approx_tree, self.k);
-                let y = self.get_neighbor(&mut cur_approx_tree, self.k);
+                let mut y = self.get_neighbor(&mut cur_approx_tree, self.k);
                 //y.recompute_depths_rec(y.root, 0);
                 let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 

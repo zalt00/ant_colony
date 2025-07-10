@@ -20,7 +20,7 @@ impl RootedTree {
         // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
         let [u, v] = edges[ei];
 
-        if self.parents[u] != v && self.parents[v] != u {
+        if self.parent[u] != v && self.parent[v] != u {
 
             let mut resu = vec![];
             let mut resv = vec![];
@@ -29,12 +29,12 @@ impl RootedTree {
 
             while self.depths[wu] > self.depths[wv] {
                 resu.push(wu);
-                wu = self.parents[wu];
+                wu = self.parent[wu];
             }
 
             while self.depths[wv] > self.depths[wu] {
                 resv.push(wv);
-                wv = self.parents[wv];
+                wv = self.parent[wv];
             }
 
             while wu != wv {
@@ -43,11 +43,11 @@ impl RootedTree {
                 resu.push(wu);
                 resv.push(wv);
 
-                wu = self.parents[wu];
+                wu = self.parent[wu];
                 if wv == usize::MAX {
                     println!("{:?} {:?} {}", resu, resv, self.root);
                 }
-                wv = self.parents[wv];
+                wv = self.parent[wv];
             }
 
             resu.push(wu);
@@ -67,35 +67,36 @@ impl RootedTree {
             // println!("rmi={}", rmi);
 
             while wi > 0 {
+                self.change_parent(dt_rm[wi], dt_rm[wi-1]);
+                //self.parent[dt_rm[wi]] = dt_rm[wi - 1]; // change le parent
+                //self.children[dt_rm[wi-1]].push(dt_rm[wi]);
 
-                self.parents[dt_rm[wi]] = dt_rm[wi - 1]; // change le parent
-                self.children[dt_rm[wi-1]].push(dt_rm[wi]);
-
-                let mut rmj = usize::MAX;
-                for (j, &node) in self.children[dt_rm[wi + 1]].iter().enumerate() {
-                    if node == dt_rm[wi] {
-                        rmj = j
-                    }
-                }
-                self.children[dt_rm[wi + 1]].swap_remove(rmj); // supprime l'enfant du parent
+                // let mut rmj = usize::MAX;
+                // for (j, &node) in self.children[dt_rm[wi + 1]].iter().enumerate() {
+                //     if node == dt_rm[wi] {
+                //         rmj = j
+                //     }
+                // }
+                // self.children[dt_rm[wi + 1]].swap_remove(rmj); // supprime l'enfant du parent
 
                 wi -= 1;
             }
         }
-        self.parents[dt_rm[0]] = dt_oth[0];
-        self.children[dt_oth[0]].push(dt_rm[0]);
-        let mut rmj = usize::MAX;
-        for (j, &node) in self.children[dt_rm[1]].iter().enumerate() {
-            if node == dt_rm[0] {
-                rmj = j
-            }
-        }
-        self.children[dt_rm[1]].swap_remove(rmj); // supprime l'enfant du parent
+        self.change_parent(dt_rm[0], dt_oth[0]);
+        // self.children[dt_oth[0]].push(dt_rm[0]);
+        // let mut rmj = usize::MAX;
+        // for (j, &node) in self.children[dt_rm[1]].iter().enumerate() {
+        //     if node == dt_rm[0] {
+        //         rmj = j
+        //     }
+        // }
+        // self.children[dt_rm[1]].swap_remove(rmj); // supprime l'enfant du parent
 
 
         
         // aaaaarg j'avais oublie a ce truc -> dans l'idee pas forcement utile de tout calculer
-        self.recompute_depths_rec(self.root, 0);
+        self.recompute_depths();
+        self.update_leaves();
 
     }
 
@@ -231,7 +232,6 @@ impl RootedTree {
         edges: &Vec<[usize; 2]>, g: &T, tree_buf: &mut T) -> bool
     {
 
-        self.update_parents();
         let dt = self.edge_removable_for_swap(ei, edges);
         if dt[0].len() == 0 {
             return false;
@@ -260,19 +260,9 @@ impl RootedTree {
 
     // critical path subtree swap
     pub fn shuffle_tree_and_random_leaf(&mut self, prng: &mut Prng) -> usize {
-        for children in self.children.iter_mut() {
-            children.shuffle(prng);
-        }
+        self.leaves.shuffle(prng);
 
-        let mut v = self.root;
-
-        loop {
-            if self.children[v].is_empty() {
-                return v
-            }
-
-            v = self.children[v][0];
-        }
+        self.leaves[0]
     }
 
     pub fn get_critical_path<T: GraphCore>(&mut self, prng: &mut Prng, tree_buf: &mut T) -> Vec<usize> {
@@ -337,12 +327,11 @@ impl RootedTree {
             i += 1;
         }
 
-        for (u, children) in self.children.iter().enumerate() {
-            for &v in children.iter() {
-                if !covered_vertices[u] || !covered_vertices[v] {
-                    tree_buf.add_edge_unckecked(u, v);
-                }
+        for [u, v] in self.edges() {
+            if !covered_vertices[u] || !covered_vertices[v] {
+                tree_buf.add_edge_unckecked(u, v);
             }
+            
         }
 
 

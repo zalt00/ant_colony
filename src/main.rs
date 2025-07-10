@@ -342,7 +342,7 @@ fn main() {
                             let mut t = g.random_subtree(&mut prng);
 
                             let base_disto = t.distorsion(&g, &dm);
-                            t.update_parents();
+                            //t.update_parents();
                             let mut t1 = t.clone();
                             let mut _i = 0;
                             while !t1.edge_swap_random(&mut prng, &edges) {_i +=1; if _i > 10 {panic!()}};
@@ -385,10 +385,10 @@ fn main() {
                     let n = 1000_usize;
 
                     let g = CompressedGraph::random_regular_graph(k, n, 2323);
-                    let t = g.random_subtree(&mut prng);
+                    let mut t = g.random_subtree(&mut prng);
                     let mut vns = VNS::new(g.clone(), 1212, vec![], vec![], 2);
                     let nda = t.new_disto_approx() as Num;
-                    let (t, _) = vns.vnd(t, nda);
+                    let (mut t, _) = vns.vnd(t, nda);
                     let dm = g.get_dist_matrix();
                     let dmt = t.to_graph(&g).get_dist_matrix();
                     let mut dists = [0.0;20];
@@ -440,10 +440,10 @@ fn main() {
 
                     //let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
                     //let mut t = g.random_subtree(&mut prng);
-                    let gt = CompressedGraph::random_tree(40000000, &mut prng);
+                    let gt = CompressedGraph::random_tree(400000, &mut prng);
 
                     let now = Instant::now();
-                    let t = RootedTree::from_graph(&gt, 0);
+                    let mut t = RootedTree::from_graph(&gt, 0);
                     println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
                     let d3 = t.new_disto_approx();
@@ -453,7 +453,7 @@ fn main() {
                     let mut t = RootedTree::from_graph(&gt, 0);
                     println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
-                    t.update_parents();
+                    //t.update_parents();
                     let d3 = t.new_disto_approx2();
                     println!("{} {:?}", d3, now.elapsed());
 
@@ -466,10 +466,6 @@ fn main() {
 
                     // t.to_graph(&g).to_dot("tree.dot");
                     // std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
-
-
-
-                    return;
 
 
 
@@ -526,7 +522,7 @@ fn main() {
                     let mut rmax: f64 = 0.0;
                     let p = 0.37480394605905987;
                     for _ in 0..10 {
-                        let t = g.random_subtree(&mut prng);
+                        let mut t = g.random_subtree(&mut prng);
                         let dhu = t.new_disto_approx();
                         let d = t.distorsion::<MatGraph>(&g, &dm);
 
@@ -661,8 +657,8 @@ fn main() {
                     let tarjan_solver= &mut TarjanSolver::new(g.n, &g);
                     
                     for _ in 0..1000 {
-                        let t1 = g.random_subtree(&mut prng);
-                        let t2 = g.random_subtree(&mut prng);
+                        let mut t1 = g.random_subtree(&mut prng);
+                        let mut t2 = g.random_subtree(&mut prng);
                         let da1 = t1.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
                         let da2 = t2.heuristic(&g, edges, tarjan_solver, &ebc, &vec![]);
 
@@ -681,26 +677,29 @@ fn main() {
                 },
 
                 Profile::NeighborhoodTest => {
-                    let mut prng = Prng::seed_from_u64(123);
-                    let g = MatGraph::random_graph(15, 80, &mut prng);
+                    println!("loading samples...");
+                    let data = Data::load("data/graph-benchmark-samples.data");
+                    let gdt = &data.samples[0];
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
 
-                    g.to_dot("graph.dot");
+                    println!("{}", &gdt.label);
+                    let max_tau = 80.0;
+                    let min_tau = 0.2;
+                    let tau_init = 76.;
 
-                    let mut t = g.random_subtree(&mut prng);
-                    t.update_parents();
-                    t.to_graph(&g).to_dot("tree.dot");
+                    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121, None, ebc.clone(), dm.clone());
+                    let d = aco2.launch(1000000, 0.5, 20.0, 2.0);
 
-                    // while !t.edge_swap_random(&mut prng, &g.get_edges()) {};
 
-                    // t.to_graph().to_dot("tree2.dot");
+                    // println!("launching test: VNS");
+                    // let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    let mut tbuf = MatGraph::new_empty(g.n);
-                    // while !t.subtree_swap_with_random_edge(&mut prng, &g.get_edges(), &g, &mut tbuf) {}
+                    // let mut vns: VNS<CompressedGraph> = VNS::new(g, 1203, ebc, dm, 0);
+                    // let d: (f64, Vec<TraceData>) = vns.gvns_random_start_nonapprox_timeout(20.0);
 
-                    t.subtree_swap_with_random_critical_path(&mut prng, &g, &mut tbuf);
-                    tbuf.to_dot("tree2.dot");
+                    // println!("d: {}", d.0);
 
-                    std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
+
                 },
 
                 Profile::VNSvsACO(_dt) => {

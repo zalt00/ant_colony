@@ -64,7 +64,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         use NeighborhoodStrategies::*;
         match self.neighborhood_strategies[i] {
             EdgeSwap => {
-                x.update_parents();  // todo cette chose n'a pas a exister
+                // ah x.update_parents();  // todo cette chose n'a pas a exister
             },
             _ => ()
         }
@@ -109,7 +109,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
             let mut iter_best_tree = RootedTree::new(self.n, 0);
             let mut iter_best_disto = constants::INF;
             for _sample_id in 0..self.neighborhood_sample_sizes[i] {
-                let y = self.get_neighbor(&mut x, i);
+                let mut y = self.get_neighbor(&mut x, i);
                 let disty = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
             
                 if disty < xdist && disty < iter_best_disto {
@@ -185,7 +185,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
                 // shake
                 self.init_strategy(&mut x, self.k);
-                let y = self.get_neighbor(&mut x, self.k);
+                let mut y = self.get_neighbor(&mut x, self.k);
                 let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
                 // descente
@@ -226,7 +226,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
     }
 
     pub fn gvns_random_start_nonapprox(&mut self, niter: usize) -> (f64, Vec<TraceData>) {
-        let x = self.g.random_subtree(&mut self.prng);
+        let mut x = self.g.random_subtree(&mut self.prng);
         let xdist = x.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
         let (_y, _ydist, y_real_dist, trace) = self.gvns(x, xdist, niter, -1.0);
@@ -235,7 +235,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
     }
 
     pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
-        let x = self.g.random_subtree(&mut self.prng);
+        let mut x = self.g.random_subtree(&mut self.prng);
         let xdist = x.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
         let (_y, _ydist, y_real_dist, trace) = self.gvns(x, xdist, 10000, time_limit);

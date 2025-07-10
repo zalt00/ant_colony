@@ -191,10 +191,10 @@ impl TarjanSolver {
         self.results.fill(usize::MAX);
     }
 
-    fn _launch_from<T: GraphCore>(&mut self, u: usize, tree: &RootedTree, g: &T) {
+    fn _launch_from<T: GraphCore>(&mut self, u: usize, tree: &RootedTree, g: &T, cidx: &Vec<usize>, children: &Vec<usize>) {
         self.ancestors[u] = u;
-        for v in tree.get_children(u) {
-            self._launch_from(*v, tree, g);
+        for v in children[cidx[u]..(cidx[u]+tree.arity[u])].iter() {
+            self._launch_from(*v, tree, g, cidx, children);
             self.uf.union(u, *v);
             if let Some(c) = self.uf.find(u) {
                 self.ancestors[c as usize] = u;
@@ -217,11 +217,11 @@ impl TarjanSolver {
         }
     }
 
-    pub fn launch<T: GraphCore>(&mut self, tree: &RootedTree, g: &T) -> (&Vec<usize>, &Vec<usize>) {
+    pub fn launch<T: GraphCore>(&mut self, tree: &RootedTree, g: &T, cidx: &Vec<usize>, children: &Vec<usize>) -> (&Vec<usize>, &Vec<usize>) {
         if cfg!(not(feature = "need_tarjan")) {panic!()};
 
         self.reset();
-        self._launch_from(tree.get_root(), tree, g);
+        self._launch_from(tree.get_root(), tree, g, cidx, children);
 
         (&self.results_idx, &self.results)
     }

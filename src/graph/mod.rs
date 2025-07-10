@@ -258,56 +258,149 @@ impl GraphRng for MatGraph {}
 
 #[derive(Clone)]
 pub struct RootedTree {
-    pub(crate) n: usize,
-    pub(crate) children: Vec<Vec<usize>>,
-    pub(crate) root: usize,
-    pub(crate) depths: Vec<usize>,
-    pub(crate) parents: Vec<usize>  // todo cette chose n'a pas a exister
+    pub n: usize,
+    pub parent: Vec<usize>,
+    pub arity: Vec<usize>,
+    pub leaves: Vec<usize>,
+    pub depths: Vec<usize>,
+    pub root: usize
 }
 
 impl RootedTree {
     pub const fn new_really_empty() -> RootedTree {
-        RootedTree { n: 0, children: vec![], root: 0, depths: vec![], parents: vec![] }
+        RootedTree { n: 0, parent: vec![], arity: vec![], leaves: vec![], depths: vec![], root: 0}
     }
 
     pub fn new(n: usize, root: usize) -> RootedTree {
-        let mut v = Vec::with_capacity(n);
-        for _ in 0..n {
-            v.push(vec![])
-        }
+        let parent = vec![usize::MAX; n];
 
         let mut depths = vec![usize::MAX; n];
         depths[root] = 0;
 
-        RootedTree { n, children: v, root, depths, parents: vec![] }
+        RootedTree { n, parent, leaves: Vec::with_capacity(n), arity: vec![0; n], depths, root }
     }
+
+    pub fn reset(&mut self, root: usize) {
+        self.parent.fill(usize::MAX);
+        self.arity.fill(0);
+        self.leaves.clear();
+        self.depths.fill(usize::MAX);
+        self.depths[root] = 0;
+        self.root = root;
+    }
+
+    pub fn add_child(&mut self, u: usize, v: usize) {
+        self.parent[v] = u;
+        self.arity[u] += 1;
+        self.depths[v] = self.depths[u] + 1;
+    }
+
+    pub fn change_parent(&mut self, u: usize, new_parent: usize) {
+        assert!(u != self.root);
+        self.arity[self.parent[u]] -= 1;
+        self.arity[new_parent] += 1;
+        self.parent[u] = new_parent;
+    }
+
+    pub fn update_leaves(&mut self) {
+        self.leaves.clear();
+        for u in (0..self.n).filter(|&x|{self.arity[x] == 0}) {
+            self.leaves.push(u)
+        }
+    }
+
+    pub fn recompute_arity(&mut self) {
+        for u in 0..self.n {
+            if u != self.root {
+                self.arity[self.parent[u]] += 1;
+            }
+        }
+    }
+
+    pub fn from_graph<T: GraphCore>(g: &T, root: usize) -> RootedTree {
+        let mut tree = Self::new(g.vertex_count(), root);
+
+        let mut visited = vec![false; g.vertex_count()];
+
+        fn dfs<T: GraphCore>(u: usize, g: &T, visited: &mut Vec<bool>, tree: &mut RootedTree) {
+            visited[u] = true;
+
+            for &v in g.get_neighbors(u) {
+                if !visited[v] {
+                    tree.add_child(u, v);
+                    dfs(v, g, visited, tree);
+                }
+            }
+
+        }
+        dfs(root, g, &mut visited, &mut tree);
+        tree.update_leaves();
+        tree
+    }
+
+    pub fn precalcul_sizes(&mut self, u: usize, tab: &mut Vec<u64>) {
+        static mut QUEUE: [usize; 50000000] = [0; 50000000];
+        let mut i = 0;
+        let mut j = self.leaves.len();
+        for (t, &u) in self.leaves.iter().enumerate() {
+            unsafe{QUEUE[t] = u;}
+        }
+        while i < j {
+            unsafe{
+                let u = QUEUE[i];
+                tab[u] += 1;
+
+                if u != self.root {
+                    if self.arity[self.parent[u]] == 1 {
+                        QUEUE[j] = self.parent[u];
+                        j+= 1;
+                    } else {
+                        self.arity[self.parent[u]] -= 1;
+                    }
+
+                    tab[self.parent[u]] += tab[u];
+                }
+                i += 1;
+            }
+        }
+        self.recompute_arity();
+    }
+
 
     pub fn has_edge(&self, u: usize, v: usize) -> bool {
         if u >= self.n || v >= self.n {false}
         else {
-            self.parents[u] == v || self.parents[v] == u
+            self.parent[u] == v || self.parent[v] == u
         }
     }
 
+    pub fn recompute_depths(&mut self) {
+        self.depths = vec![usize::MAX; self.n];
+        self.depths[self.root] = 0;
 
-    pub fn add_child(&mut self, parent: usize, child: usize) {
-        // note: parent doit avoir ete ajoute auparavant
-        self.children[parent].push(child);
-        self.depths[child] = if let Some(val) = self.depths[parent].checked_add(1) {
-            val
-        } else {
-            println!("{} {}", parent, child);
-            println!("{:?}", self.depths);
-            println!("\n{:?}", self.children);
-            panic!()
+        for i in 0..self.leaves.len() {
+            self.recompute_depths_rec(self.leaves[i]);
         }
     }
 
-    pub fn recompute_depths_rec(&mut self, u: usize, d: usize) {
-        self.depths[u] = d;
-        for v in self.children[u].clone() {
-            self.recompute_depths_rec(v, d + 1);
+    fn recompute_depths_rec(&mut self, u: usize) {
+        if self.depths[u] == usize::MAX {
+            self.recompute_depths_rec(self.parent[u]);
+            self.depths[u] = self.depths[self.parent[u]]
         }
+    }
+
+    pub fn get_children_compressed_vecvec(&mut self) -> (Vec<usize>, Vec<usize>) {
+        let (idx, mut children) = init_compressed_vecvec(0, self.n, &self.arity);
+        for u in 0..self.n {
+            if u != self.root {
+                let p = self.parent[u];
+                self.arity[p] -= 1;
+                children[idx[p] + self.arity[p]] = u;
+            }
+        }
+        self.recompute_arity();
+        (idx, children)
     }
 
 
@@ -325,80 +418,57 @@ pub fn print_counters() {
 
 impl RootedTree {
 
-    pub fn get_children(&self, u: usize) -> &[usize] {&self.children[u]}
     pub const fn get_root(&self) -> usize {self.root}
-
-    pub fn reset(&mut self, root: usize) {
-        for v in self.children.iter_mut() {
-            v.clear();
-        }
-        self.depths.fill(usize::MAX);
-        self.depths[root] = 0;
-
-        self.root = root;
-    }
 
     pub fn fill_graph<T: GraphCore>(&self, tree_buf: &mut T) {
         tree_buf.reset();
-        for (u, children) in self.children.iter().enumerate() {
-            for v in children.iter() {
-                tree_buf.add_edge_unckecked(u, *v);
+        for u in 0..self.n {
+            if u != self.root {
+                tree_buf.add_edge_unckecked(u, self.parent[u]);
             }
         }
     }
 
     pub fn to_graph<T: GraphCore>(&self, template: &T) -> T {
         let mut g = template.clone_empty();
-        for (u, children) in self.children.iter().enumerate() {
-            for v in children.iter() {
-                g.add_edge_unckecked(u, *v);
+        for u in 0..self.n {
+            if u != self.root {
+                g.add_edge_unckecked(u, self.parent[u]);
             }
         }
         g
     }
 
-    pub fn from_graph<T: GraphCore>(g: &T, root: usize) -> RootedTree {
-        let mut tree = Self::new(g.vertex_count(), root);
-
-        let mut visited = vec![false; g.vertex_count()];
-
-        fn dfs<T: GraphCore>(u: usize, g: &T, visited: &mut Vec<bool>, tree: &mut RootedTree) {
-            visited[u] = true;
-
-            for &v in g.get_neighbors(u) {
-                if !visited[v] {
-                    tree.add_child(u, v);
-                    dfs(v, g, visited, tree);
-                }
-            }
-        }
-        dfs(root, g, &mut visited, &mut tree);
-        tree
+    pub fn edges<'a>(&'a self) -> EdgeIterator<'a> {
+        EdgeIterator { tree: self, u: 0 }
     }
 
 }
 
 
-impl RootedTree {
-
-
-    pub fn update_parents(&mut self) {
-        if self.parents.is_empty() {
-            self.parents = vec![usize::MAX; self.n];
-        }
-
-        for (u, ch) in self.children.iter().enumerate() {
-            for v in ch {
-                self.parents[*v] = u;
-            }
-        }
-
-        self.parents[self.root] = usize::MAX;
-    }
-
-
-
+pub struct EdgeIterator<'a> {
+    tree: &'a RootedTree,
+    u: usize,
 }
+
+impl<'a> Iterator for EdgeIterator<'a> {
+    type Item = [usize; 2];
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.u == self.tree.root {
+            self.u += 1;
+        }
+        if self.u >= self.tree.n {
+            None 
+        } else {
+
+            let res = [self.u, self.tree.parent[self.u]];
+            self.u += 1;
+            Some(res)
+        }
+    }
+}
+
+
 
 
 

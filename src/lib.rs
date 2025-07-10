@@ -50,7 +50,6 @@ impl Helper {
         let m = 500;
         self.g = MatGraph::random_graph(100, m, &mut self.prng);
         self.tree = self.g.random_subtree(&mut self.prng);
-        self.tree.update_parents();
 
         self.dataset = Vec::with_capacity(m);
 
@@ -116,8 +115,6 @@ impl Helper {
             self.init();
         } else {
             self.tree = self.g.random_subtree(&mut self.prng);
-            self.tree.update_parents();
-
 
         }
 

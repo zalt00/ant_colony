@@ -143,11 +143,9 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
         }
 
         // renforcement
-        for u in 0..self.n {
-            for &v in cur_best_tree.get_children(u) {
-                self.tau_matrix[u + self.n * v] += self.c;
-                self.tau_matrix[v + self.n * u] += self.c;
-            }
+        for [u, v] in cur_best_tree.edges() {
+            self.tau_matrix[u + self.n * v] += self.c;
+            self.tau_matrix[v + self.n * u] += self.c;
         }
     }
 
@@ -161,18 +159,14 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
         }
 
         // renforcement
-        for u in 0..self.n {
-            for &v in cur_best_tree.get_children(u) {
-                self.tau_matrix[u + self.n * v] += self.c * w;
-                self.tau_matrix[v + self.n * u] += self.c * w;
-            }
+        for [u, v] in cur_best_tree.edges() {
+            self.tau_matrix[u + self.n * v] += self.c * w;
+            self.tau_matrix[v + self.n * u] += self.c * w;
         }
 
-        for u in 0..self.n {
-            for &v in iter_best_tree.get_children(u) {
-                self.tau_matrix[u + self.n * v] += self.c * (1.-w);
-                self.tau_matrix[v + self.n * u] += self.c * (1.-w);
-            }
+        for [u, v] in iter_best_tree.edges() {
+            self.tau_matrix[u + self.n * v] += self.c * (1.-w);
+            self.tau_matrix[v + self.n * u] += self.c * (1.-w);
         }
 
     }
@@ -296,6 +290,8 @@ impl<T: GraphCore+GraphRng> ACO2<T> {
                     if self.covered_vertices[e[0]] {(e[1], e[0])} else {(e[0], e[1])};
                 self.covered_vertices[u] = true;
                 self.tree.add_child(parent, u);
+
+                self.tree.update_leaves();
 
                 debug_assert!(self.covered_vertices.iter().all(|x| *x));
 
