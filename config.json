@@ -1,10 +1,10 @@
 {
   "profiles": {
-    "vns-vs-aco": {
-      "VNSvsACO": {
+    "ac-c8000-evap0.4-w0.5-seed143": {
+      "AntColony": {
         "c": 8000.0,
         "evap": 0.4,
-        "seed": 123,
+        "seed": 143,
         "w": 0.5,
         "k": 10,
         "ic": 600
@@ -20,22 +20,23 @@
         "ic": 600
       }
     },
-    "benchmark2": "Benchmark",
-    "ntest1": "NeighborhoodTest",
     "disto_approx": "DistoApprox",
+    "reg_graph": "RegularGraph",
+    "clustering_test": "ClusteringTest",
     "clique-cycle": "CliqueCycle",
     "new_dist_approx": "NewDistoApprox",
     "benchmark": "VNSFullTest",
-    "ac-c8000-evap0.4-w0.5-seed143": {
-      "AntColony": {
+    "benchmark2": "Benchmark",
+    "ntest1": "NeighborhoodTest",
+    "vns-vs-aco": {
+      "VNSvsACO": {
         "c": 8000.0,
         "evap": 0.4,
-        "seed": 143,
+        "seed": 123,
         "w": 0.5,
         "k": 10,
         "ic": 600
       }
-    },
-    "clustering_test": "ClusteringTest"
+    }
   }
 }

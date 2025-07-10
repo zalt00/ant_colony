@@ -26,6 +26,22 @@ pub fn random_permutation(n: usize, prng: &mut Prng) -> Vec<usize> {
     perm
 }
 
+pub fn sample_slow<T: Iterator<Item=f64>+Clone>(proba: T, prng: &mut Prng) -> usize {
+    let mut cumulative_sum = 0.0;
+    let r = my_rand(prng);
+    let proba = proba.map(|x| {x});
+    let s: f64 = proba.clone().sum();
+    for (i, p) in proba.enumerate() {
+        cumulative_sum += p;
+        if cumulative_sum >= r * s {
+            //println!("{}", p);
+            return i;
+        }
+    }
+    panic!()
+
+}
+
 
 
 

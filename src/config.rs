@@ -29,6 +29,8 @@ pub enum Profile {
 
     NewDistoApprox,
 
+    RegularGraph,
+
     ClusteringTest
 }
 

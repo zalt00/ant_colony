@@ -38,6 +38,16 @@ pub trait GraphCore: Clone {
         edges
     }
 
+    fn from_edges_only(edges: &Vec<[usize; 2]>) -> Self {
+        let mut n = 1;
+        for &[u, v] in edges {
+            n = n.max(u).max(v);
+        }
+        n += 1;
+        Self::from_edges(n, edges)
+    }
+    
+
 
 
     fn update_dist_matrix(&self, dist_matrix: &mut Vec<u32>) {

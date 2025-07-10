@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::ffi::CStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
@@ -209,6 +210,43 @@ pub trait GraphRng: GraphCore {
         } 
 
         Self::from_edges(self.vertex_count(), &edges)
+
+    }
+
+
+
+    fn random_regular_graph(d: usize, n: usize, seed: usize) -> Self where Self: Sized {
+        use pyo3::prelude::*;
+        use pyo3::types::PyTuple;
+        pyo3::prepare_freethreaded_python();
+
+static PY_CODE: &CStr = c"
+import networkx
+def get_graph(d, n, seed):
+    g = networkx.random_regular_graph(d, n, seed=seed)
+    return [e for e in g.edges]";
+
+        let mut edges: Vec<[usize; 2]> = vec![];
+
+        Python::with_gil(|py| {
+            let fun: Py<PyAny> = PyModule::from_code(
+                py,
+                PY_CODE,
+                c"",
+                c"",
+            ).expect("rip")
+            .getattr("get_graph").expect("rip2")
+            .into();
+
+            let args = PyTuple::new(py, &[d, n, seed]).expect("aah");
+
+            let obj = fun.call1(py, args).expect("beuh");
+            edges = obj.extract(py).expect("bah");
+
+        });
+
+        Self::from_edges(n, &edges)
+
 
     }
 

@@ -1,7 +1,9 @@
 
+use std::collections::HashMap;
+
 use rand::{seq::SliceRandom, RngCore};
 
-use crate::{graph::RootedTree, graph::graph_core::GraphCore, my_rand::Prng, utils::Uf};
+use crate::{graph::{graph_core::GraphCore, RootedTree}, my_rand::{sample_slow, Prng}, utils::Uf};
 
 #[derive(Debug, Clone, Copy)]
 pub enum NeighborhoodStrategies {
@@ -53,6 +55,8 @@ impl RootedTree {
 
             [resu, resv]
         } else {
+                        //println!("{} {} {:?}" , u, v, self.parents);
+
             [vec![], vec![]]
         }
     }
@@ -102,6 +106,7 @@ impl RootedTree {
         //self.update_parents();
 
         let ei = (prng.next_u64() % edges.len() as u64) as usize;
+        //println!("{:?}", edges[ei]);
         // println!("{:?}", edges[ei]);
         let dt = self.edge_removable_for_swap(ei, edges);
         // println!("{:?}", dt);
@@ -126,6 +131,68 @@ impl RootedTree {
 
         true
     }
+
+
+    pub fn edge_swap_random_biaised(&mut self, prng: &mut Prng, proba: &[f64], edges: &Vec<[usize; 2]>) -> bool {
+        // /!\ appeler update_parent avant
+
+        // pour tester, essayer d'enlever plus tard
+        //self.update_parents();
+
+        let ei = sample_slow(proba
+            .iter()
+            .zip(edges)
+            .map(| (&p, &[u, v]) | {if self.has_edge(u, v) {0.0} else {p}} ), prng);
+        // println!("{:?}", edges[ei]);
+        let dt = self.edge_removable_for_swap(ei, edges);
+        // println!("{:?}", dt);
+
+        let mut edge_cycle_set = HashMap::new();
+
+        let [resu, resv] = &dt;
+                if resu.len() == 0 {println!("welp"); return false;}
+
+        for i in 0..(resu.len() - 1) {
+            let u = resu[i];
+            let v = resu[i+1];
+            edge_cycle_set.insert((u.min(v), u.max(v)), i);
+        }
+        for i in 0..(resv.len() - 1) {
+            let u = resv[i];
+            let v = resv[i+1];
+            edge_cycle_set.insert((u.min(v), u.max(v)), i + resu.len() - 1);
+        }
+
+
+
+        let k = resu.len() + resv.len() - 2;
+        let mut probk = vec![f64::NAN; k];
+
+        for (&[u, v], &p) in edges.iter().zip(proba) {
+            if let Some(entry) = edge_cycle_set.get(&(u.min(v), u.max(v))) {
+                probk[*entry] = (1.0 - p).max(0.0);
+
+            }
+        }
+
+        let mut rk = sample_slow(probk.iter().cloned(), prng);
+
+        let mut dtrmi = 0;
+        let mut dtothi = 1;
+        // println!("{:?} k={}  {}", dt, k, rk);
+
+        if rk >= resu.len() - 1 {
+            rk -= resu.len() - 1;
+            dtrmi = 1;
+            dtothi = 0;
+        }
+
+
+        self.do_the_edge_swap(&dt[dtrmi], &dt[dtothi], rk);
+
+        true
+    }
+
 
 
     pub fn edge_swap(&mut self, prng: &mut Prng, edges: &Vec<[usize; 2]>, ei: usize) -> ([usize; 2], bool) {

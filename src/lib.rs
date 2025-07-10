@@ -20,7 +20,7 @@ use crate::graph::graph_generator::GraphRng;
 use crate::graph::MatGraph;
 use crate::graph::RootedTree;
 use crate::my_rand::Prng;
-use crate::utils::TarjanSolver;                // <-- bien importer la macro
+use crate::utils::TarjanSolver;
 
 
 #[pyclass]

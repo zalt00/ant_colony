@@ -4,6 +4,8 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 
 use crate::distorsion_heuristics::Num;
+use pyo3::ffi::c_str;
+use pyo3::types::PyDict;
 use rand::{RngCore, SeedableRng};
 
 use crate::aco2::ACO2;
@@ -212,6 +214,7 @@ fn main() {
 
         profiles.insert("ntest1".to_string(), Profile::NeighborhoodTest);
         profiles.insert("new_dist_approx".to_string(), Profile::NewDistoApprox);
+        profiles.insert("reg_graph".to_string(), Profile::RegularGraph);
 
         profiles.insert(format!("vns-vs-aco"), Profile::VNSvsACO(
             AntColonyProfile {c: 8000.0, evap: 0.4, seed: 123, w: 0.5, k: 10, ic: 600}
@@ -233,25 +236,214 @@ fn main() {
 
             match profile {
                 Profile::ClusteringTest => {
-                    let mut prng = Prng::seed_from_u64(1671);
-                    let g = CompressedGraph::random_graph(100000, 2000000, &mut prng);
-                    let d = g.clustering();
-                    println!("{:?}", d.1.len());
-                    println!("{}", d.1.iter().map(|x|{x*x}).sum::<usize>())
+                    // let mut prng = Prng::seed_from_u64(1671);
+                    // let g = CompressedGraph::random_graph(100000, 2000000, &mut prng);
+                    // let d = g.clustering();
+                    // println!("{:?}", d.1.len());
+                    // println!("{}", d.1.iter().map(|x|{x*x}).sum::<usize>())
+
+
+                    use pyo3::prelude::*;
+                    
+                    pyo3::prepare_freethreaded_python();
+                    let code = c_str!(include_str!("../sim_mat.py"));
+                                        
+                    let n_diff_graph = 10;
+                    let n_trees = 20;
+                    let n_graph = n_diff_graph * n_trees;
+
+                    let mut graphs = vec![];
+                    let mut full_graphs = vec![];
+                    let mut features = vec![];
+                    let mut prng = Prng::seed_from_u64(12180);
+
+                    for _graph_id in 0..n_diff_graph {
+                        let g = CompressedGraph::random_graph(50, 500, &mut prng);
+                        let mut vns = VNS::new(g.clone(), 
+                        _graph_id, vec![], vec![], 2);
+                        for _tree in 0..n_trees {
+                            println!("graph {}/{}, tree {}/{}", _graph_id+1, n_diff_graph, _tree+1, n_trees);
+                            let mut t = g.random_subtree(&mut prng);
+                            let disto = t.new_disto_approx();
+                            (t, _) = vns.vnd(t, disto as Num);
+
+                            let mut degrees = vec![];
+                            for u in 0..g.n {
+                                degrees.push(g.get_neighboor_count_unchecked(u) as f64);
+                            }
+
+                            let edges = t.to_graph(&g).get_edges();
+                            graphs.push(edges);
+                            full_graphs.push(g.get_edges());
+                            features.push(degrees);
+
+                        }
+                    }
+
+                    Python::with_gil(|py| {
+                        let fun: Py<PyAny> = PyModule::from_code(
+                            py,
+                            code,
+                            c".\\..\\sim_mat.py",
+                            c"sim_mat",
+                        ).or_else(|err| {println!("{}", err.traceback(py).unwrap()); Err(err)})
+                        .unwrap()
+                        .getattr("main").expect("rip2")
+                        .into();
+
+                        // let fun: Py<PyAny> = PyModule::import(
+                        //     py,
+                        //     "..sim_mat"
+                        // ).or_else(|err| {println!("{:?}", err.traceback(py)); Err(err)})
+                        // .unwrap()
+                        // .getattr("main").expect("rip2")
+                        // .into();
+
+
+                        let kwargs = PyDict::new(py);
+                        kwargs.set_item("n_graphs", n_graph).expect("bah");
+                        kwargs.set_item("graphs", graphs).expect("bah");
+                        kwargs.set_item("features", features).expect("bah");
+                        kwargs.set_item("full_graphs", &full_graphs).expect("bbah");
+
+                        let get_similarities_py = fun.call(py, (), Some(&kwargs)).expect("beuh");
+                        
+                        let get_similarities = 
+                            |tree_edges: &Vec<[usize; 2]>, tree_features: &Vec<f64>| {
+
+                                let kwargs = PyDict::new(py);
+                                kwargs.set_item("tree_edges", tree_edges).expect("bah");
+                            kwargs.set_item("tree_features", tree_features).expect("bah");
+                            let obj = get_similarities_py.call(py, (), Some(&kwargs)).expect("beuh");
+                            let (edges, similarities): (Vec<[usize; 2]>, Vec<f64>) = obj.extract(py).expect("sfsdf");
+
+                            (edges, similarities)
+
+                        };
+
+                        
+                        let g = MatGraph::from_edges_only(&full_graphs[0]);
+                        let dm = g.get_dist_matrix();
+
+                        let mut degrees = vec![];
+                        for u in 0..g.n {
+                            degrees.push(g.get_neighboor_count_unchecked(u) as f64);
+                        }
+
+                        let edges = g.get_edges();
+                        println!("{}", g.n);
+
+                        let mut gm1 = 0.0;
+                        let mut gm2 = 0.0;
+                        let iter_count = 1000;
+                        for _iter_id in 0..iter_count {
+                            let mut t = g.random_subtree(&mut prng);
+
+                            let base_disto = t.distorsion(&g, &dm);
+                            t.update_parents();
+                            let mut t1 = t.clone();
+                            let mut _i = 0;
+                            while !t1.edge_swap_random(&mut prng, &edges) {_i +=1; if _i > 10 {panic!()}};
+
+                            let disto1 = t1.distorsion(&g, &dm);
+
+                            let mut t2 = t.clone();
+                            let tree_edges = t2.to_graph(&g).get_edges();
+                            let (edges2, similarities) = get_similarities(&tree_edges, &degrees);
+
+                            
+                            t2.edge_swap_random_biaised(&mut prng, &similarities, &edges2);
+
+                            //println!("simi {:?}", similarities);
+                            let disto2 = t2.distorsion(&g, &dm);
+
+                            let g1 = disto1 as f64 / base_disto as f64;
+                            let g2 = disto2 as f64 / base_disto as f64;
+
+                            gm1 += g1;
+                            gm2 += g2;
+                        }
+
+                        println!("g1: {}", gm1 / iter_count as f64);
+                        println!("g2: {}", gm2 / iter_count as f64);
+
+                        });
+
+
+
+
+
+
 
                 },
+                Profile::RegularGraph => {
+                    let mut prng = Prng::seed_from_u64(232);
+
+                    let k = 3_usize;
+                    let n = 1000_usize;
+
+                    let g = CompressedGraph::random_regular_graph(k, n, 2323);
+                    let t = g.random_subtree(&mut prng);
+                    let mut vns = VNS::new(g.clone(), 1212, vec![], vec![], 2);
+                    let nda = t.new_disto_approx() as Num;
+                    let (t, _) = vns.vnd(t, nda);
+                    let dm = g.get_dist_matrix();
+                    let dmt = t.to_graph(&g).get_dist_matrix();
+                    let mut dists = [0.0;20];
+                    let mut c = [0; 20];
+                    let mut ck = (0..20).map(|i: u32| {n*k*(k-1).pow(i) / 2}).collect::<Vec<usize>>();
+
+                    let mut m = n * (n-1) / 2;
+                    for x in ck.iter_mut() {
+                        *x = (*x).min(m);
+                        m -= *x;
+                    }
+
+                    for u in 0..(g.n - 1) {
+                        for v in (u+1)..g.n {
+                            dists[dm[u + g.n * v] as usize] += dmt[u + g.n * v] as f64;
+                            c[dm[u + g.n * v] as usize] += 1;
+                        }
+                    }
+
+                    let nnm1 = g.n as f64 * (g.n - 1) as f64;
+
+                    let di: Vec<f64> = dists.iter().enumerate().map(|(i, &x)| {x / c[i] as f64}).collect();
+                    println!("dists {:?}", dists);
+                    println!("c {:?}", c);
+                    println!("ck {:?}", ck);
+                    println!("di {:?}", di);
+                    println!("dist {:?}", t.distorsion(&g, &dm));
+
+                    let dh = t.new_disto_approx() as f64 * 2.0 / g.n as f64 / (g.n -1) as f64;
+                    println!("dh {}", dh);
+
+                    let s = c[1..].iter().enumerate().map(|(i, &c)| {c / (i+1)}).sum::<usize>() as f64 * dh;
+                    println!("{}", s / nnm1 * 2.0);
+
+                    let ebc = g.get_edge_betweeness_centrality();
+                    println!("{}", ebc.iter().sum::<f64>() / nnm1);
+
+                    println!("{}", c.iter().enumerate().map(|(i, &x)| {(x * i) as f64}).sum::<f64>()*2.0/nnm1)
+
+                },
+
+
                 Profile::NewDistoApprox => {
 
                     println!("loading samples...");
-                    let data = Data::load("data/graph-benchmark-samples.data");
+                    let _data = Data::load("data/graph-benchmark-samples.data");
                     let mut prng = Prng::seed_from_u64(1671);
 
                     
+
+
+
                     let g = MatGraph::random_graph(1000, 10000, &mut prng);
                     let dm = g.get_dist_matrix();
 
                     let mut dists = [0_u32; 10];
-                    let mut d_mean = 0.0;
+                    let mut _d_mean = 0.0;
                     let mut d_max = 0;
                     for v in dm.iter() {
                         dists[*v as usize] += 1;
@@ -260,7 +452,7 @@ fn main() {
                     for v in 0..g.n {
                         let deg = g.get_neighboor_count_unchecked(v as usize);
                         d_max = d_max.max(deg);
-                        d_mean += deg as f64 / g.n as f64;
+                        _d_mean += deg as f64 / g.n as f64;
                     }
 
                     let s = dists[1..].iter().map(|x| {*x as f64}).sum::<f64>();
