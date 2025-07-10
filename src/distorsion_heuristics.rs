@@ -107,6 +107,19 @@ impl RootedTree {
         ans
     }
 
+    fn s22_sd_part_only(&self, u: usize, idx: &Vec<usize>, size_sum: &Vec<u64>, sd_sum: &Vec<u64>) -> u64 {
+        let cn = self.children[u].len();
+
+        let ans = if cn > 0 {
+            self.sd(u, idx, size_sum, sd_sum) + self.s22_aux_sd_part_only(u, 0, cn, idx, size_sum, sd_sum)
+        } else {
+            0
+        };
+
+        //println!("u={}, ans={}", u, ans);
+        ans
+    }
+
     fn s22_aux(&self, u: usize, i: usize, j: usize, idx: &Vec<usize>, size_sum: &Vec<u64>, sd_sum: &Vec<u64>) -> u64 {
         if j - i == 1 {
             self.s22(self.children[u][i], idx, size_sum, sd_sum)
@@ -119,6 +132,21 @@ impl RootedTree {
             (size_sum[idx[u]+k] - size_sum[idx[u]+i]) * (sd_sum[idx[u]+j] - sd_sum[idx[u]+k]) +
             (size_sum[idx[u]+j] - size_sum[idx[u]+k]) * (sd_sum[idx[u]+k] - sd_sum[idx[u]+i]) +
             2 * (size_sum[idx[u]+k] - size_sum[idx[u]+i]) * (size_sum[idx[u]+j] - size_sum[idx[u]+k])
+
+        }
+    }
+
+    fn s22_aux_sd_part_only(&self, u: usize, i: usize, j: usize, idx: &Vec<usize>, size_sum: &Vec<u64>, sd_sum: &Vec<u64>) -> u64 {
+        if j - i == 1 {
+            self.s22_sd_part_only(self.children[u][i], idx, size_sum, sd_sum)
+        } else {
+            let k = (j + i) / 2;
+            
+            self.s22_aux_sd_part_only(u, i, k, idx, size_sum, sd_sum) +
+            self.s22_aux_sd_part_only(u, k, j, idx, size_sum, sd_sum) +
+
+            (size_sum[idx[u]+k] - size_sum[idx[u]+i]) * (sd_sum[idx[u]+j] - sd_sum[idx[u]+k]) +
+            (size_sum[idx[u]+j] - size_sum[idx[u]+k]) * (sd_sum[idx[u]+k] - sd_sum[idx[u]+i])
 
         }
     }
@@ -173,6 +201,106 @@ impl RootedTree {
 
         self.s22(self.root, &idx, &size_sum, &sd_sum)
         
+    }
+    pub fn new_disto_approx_sd_part_only(&self) -> u64 {
+        let (idx, mut size_sum, mut sd_sum) = self.precalcul_init();
+        self.precalcul(self.root, &idx, &mut size_sum, &mut sd_sum);
+
+        // println!("sd {:?}", sd_sum);
+        // println!("size {:?}", size_sum);
+        // for i in 0..self.n {
+        //     println!("u={}, size={}, sd={}", i, self.size(i, &size_sum), self.sd(i, &size_sum, &sd_sum));
+        // }
+
+        self.s22_sd_part_only(self.root, &idx, &size_sum, &sd_sum)
+        
+    }
+
+    pub fn compute_leaf_counts(&self, u: usize, tab: &mut Vec<u64>) {
+        if self.children[u].len() == 0 {
+            tab[u] = 1;
+        } else {
+            for &v in &self.children[u] {
+                self.compute_leaf_counts(v, tab);
+                tab[u] += tab[v]
+            }
+        }
+    }
+
+    pub fn precalcul_sizes(&self, u: usize, tab: &mut Vec<u64>) {
+        for &v in &self.children[u] {
+            self.precalcul_sizes(v, tab);
+            tab[u] += tab[v];
+        }
+        tab[u] += 1;
+    }
+    pub fn new_disto_approx2(&self) -> u64 {
+        let mut size = vec![0; self.n];
+        self.precalcul_sizes(self.root, &mut size);
+        let mut s3 = 0;
+        for u in 0..self.n {
+            if self.root == u {
+                s3 += self.depths[u] as u64 * (1 + self.n as u64)
+            } else {
+                let su = size[u];
+                let spu = size[self.parents[u]];
+                s3 += self.depths[u] as u64 * (1 + self.n as u64 - su * (spu - su + 1))
+                        + su * (spu - su - 1);
+            }
+        }
+        s3
+    }
+
+    pub fn afficher_des_trucs(&mut self) {
+        let (idx, mut size_sum, mut sd_sum) = self.precalcul_init();
+        self.precalcul(self.root, &idx, &mut size_sum, &mut sd_sum);
+        self.update_parents();
+        let mut s = 0;
+        for u in 0..self.n {
+            if u == self.root {
+                s += self.sd(u, &idx, &size_sum, &sd_sum);
+            } else {
+                s += self.sd(u, &idx, &size_sum, &sd_sum) * (self.size(self.parents[u], &idx, &size_sum) - self.size(u, &idx, &size_sum));
+            }
+        }
+
+        let mut s2 = 0;
+        for v in 0..self.n {
+            let mut u = v;
+            while u != self.root {
+                s2 += (self.depths[v] - self.depths[u]) as u64 * 
+                (self.size(self.parents[u], &idx, &size_sum) - self.size(u, &idx, &size_sum));
+                u = self.parents[u];
+            }
+
+            s2 += self.depths[v] as u64;
+        }
+
+
+        let mut s3 = 0;
+        for u in 0..self.n {
+            if self.root == u {
+                s3 += self.depths[u] as u64 * (1 + self.n as u64)
+            } else {
+                let su = self.size(u, &idx, &size_sum);
+                let spu = self.size(self.parents[u], &idx, &size_sum);
+                s3 += self.depths[u] as u64 * (1 + self.n as u64 - su * (spu - su + 1))
+                        + su * (spu - su - 1);
+
+                
+
+            }
+        }
+
+        println!("s={}", s);
+        println!("s2={}", s2);
+        println!("s3={}", s3);
+        println!("nd={}", self.new_disto_approx());
+
+        println!("sd_part_only={}", self.new_disto_approx_sd_part_only());
+
+
+
     }
 
     pub fn slow_disto_approx(&self, g: &MatGraph, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {

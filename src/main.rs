@@ -1,3 +1,4 @@
+use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
@@ -15,7 +16,7 @@ use crate::graph::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
 use crate::vns::VNS;
-use crate::my_rand::{random_permutation, Prng};
+use crate::my_rand::{my_rand, random_permutation, Prng};
 use crate::greedy::greedy_ebc_delete_no_recompute;
 use crate::graph::graph_generator::{Data, GraphData, GraphRng};
 use crate::graph::print_counters;
@@ -269,7 +270,7 @@ fn main() {
 
                             let mut degrees = vec![];
                             for u in 0..g.n {
-                                degrees.push(g.get_neighboor_count_unchecked(u) as f64);
+                                degrees.push(my_rand(&mut prng));
                             }
 
                             let edges = t.to_graph(&g).get_edges();
@@ -435,7 +436,27 @@ fn main() {
                     let _data = Data::load("data/graph-benchmark-samples.data");
                     let mut prng = Prng::seed_from_u64(1671);
 
-                    
+
+                    //let g = CompressedGraph::random_graph(1000000, 50000000, &mut prng);
+                    //let mut t = g.random_subtree(&mut prng);
+                    let mut t = RootedTree::from_graph(&CompressedGraph::random_tree(10000000, &mut prng), 0);
+                    println!("root={}", t.root);
+
+                    let now = Instant::now();
+                    let d3 = t.new_disto_approx();
+                    println!("{} {:?}", d3, now.elapsed());
+
+                    let now = Instant::now();
+                    t.update_parents();
+                    let d3 = t.new_disto_approx2();
+                    println!("{} {:?}", d3, now.elapsed());
+
+                    // t.to_graph(&g).to_dot("tree.dot");
+                    // std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
+
+
+
+                    return;
 
 
 

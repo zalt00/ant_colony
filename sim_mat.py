@@ -202,7 +202,7 @@ def main(n_graphs, graphs, features, full_graphs):
             sim_edges = []
             for [u, v] in full_graph:
                 edges.append((u, v))
-                sim_edges.append(1.0)# float(torch.dot(emb_norm[u], emb_norm[v])))
+                sim_edges.append(float(torch.dot(emb_norm[u], emb_norm[v])))
 
             # t_sne = manifold.TSNE(
             #     n_components=2,
