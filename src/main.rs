@@ -458,15 +458,33 @@ fn main() {
                     println!("{} {:?}", d3, now.elapsed());
 
                     let now = Instant::now();
-                    let mut t = ParentTree::from_graph(&gt, 0);
+                    let mut t = RootedTree::from_graph(&gt, 0);
                     println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
-                    let d3 = t.new_disto_approx2();
+                    //t.update_parents();
+                    let d3 = t.new_disto_approx3();
+                    println!("{} {:?}", d3, now.elapsed());
+
+                    let now = Instant::now();
+                    let mut t = RootedTree::from_graph(&gt, 0);
+                    println!("graph gen {:?}", now.elapsed());
+                    let now = Instant::now();
+                    //t.update_parents();
+                    let d3 = t.new_disto_approx4();
+                    println!("{} {:?}", d3, now.elapsed());
+
+
+                    let now = Instant::now();
+                    let mut t = RootedTree::from_graph(&gt, 0);
+                    println!("graph gen {:?}", now.elapsed());
+                    let now = Instant::now();
+                    //t.update_parents();
+                    let d3 = t.heuristic(&gt, &vec![], &mut TarjanSolver::new(0, &gt), &vec![], &vec![]);
                     println!("{} {:?}", d3, now.elapsed());
 
                     // t.to_graph(&g).to_dot("tree.dot");
                     // std::process::Command::new(".\\gen_tree_png.cmd").spawn().expect("bah");
-
+                    return;
 
 
                     let g = MatGraph::random_graph(1000, 10000, &mut prng);
@@ -683,21 +701,21 @@ fn main() {
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
 
                     println!("{}", &gdt.label);
-                    let max_tau = 80.0;
-                    let min_tau = 0.2;
-                    let tau_init = 76.;
+                    // let max_tau = 80.0;
+                    // let min_tau = 0.2;
+                    // let tau_init = 76.;
 
-                    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121, None, ebc.clone(), dm.clone());
-                    let d = aco2.launch(1000000, 0.5, 20.0, 2.0);
+                    // let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121, None, ebc.clone(), dm.clone());
+                    // let d = aco2.launch(1000000, 0.5, 20.0, 2.0);
 
 
-                    // println!("launching test: VNS");
-                    // let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    println!("launching test: VNS");
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
 
-                    // let mut vns: VNS<CompressedGraph> = VNS::new(g, 1203, ebc, dm, 0);
-                    // let d: (f64, Vec<TraceData>) = vns.gvns_random_start_nonapprox_timeout(20.0);
+                    let mut vns: VNS<CompressedGraph> = VNS::new(g, 123, ebc, dm, 0);
+                    let d: (f64, Vec<TraceData>) = vns.gvns_random_start_nonapprox_timeout(20.0);
 
-                    // println!("d: {}", d.0);
+                    println!("d: {}", d.0);
 
 
                 },

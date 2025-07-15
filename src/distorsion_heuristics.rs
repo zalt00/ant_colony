@@ -91,7 +91,7 @@ impl RootedTree {
                 use crate::counters;
 
         counters::incr(0);
-        self.new_disto_approx2()
+        self.new_disto_approx4()
     }
 
 
@@ -164,7 +164,8 @@ impl RootedTree {
         (idx, vec![0; s], vec![0; s])
 
     }
-
+    
+    #[deprecated]
     pub fn new_disto_approx(&mut self) -> u64 {
         let (cidx, children) = self.get_children_compressed_vecvec();
         let (idx, mut size_sum, mut sd_sum) = self.precalcul_init();
@@ -187,6 +188,7 @@ impl RootedTree {
         let mut s3 = 0;
         for u in 0..self.n {
             if self.root == u {
+                // euh cette ligne ne sert a rien
                 s3 += self.depths[u] as u64 * (1 + self.n as u64)
             } else {
                 let su = size[u];
@@ -197,6 +199,28 @@ impl RootedTree {
         }
         s3
     }
+
+    pub fn new_disto_approx3(&mut self) -> u64 {
+        let mut size = vec![0; self.n];
+        self.precalcul_sizes(self.root, &mut size);
+        let mut s3 = (self.n * (self.n + 1))  as u64;
+        for u in 0..self.n {
+            let su = size[u];
+            s3 += (self.depths[u] as u64 * (self.n + 1) as u64) - su * (su + 1)
+        }
+        s3
+    }
+    pub fn new_disto_approx4(&mut self) -> u64 {
+        let mut size = vec![0; self.n];
+        self.precalcul_sizes(self.root, &mut size);
+        let mut s3 = 0;
+        for u in 0..self.n {
+            let su = size[u];
+            s3 += su * (self.n as u64 - su);
+        }
+        s3
+    }
+
 
     // pub fn afficher_des_trucs(&mut self) {
     //     let (idx, mut size_sum, mut sd_sum) = self.precalcul_init();
