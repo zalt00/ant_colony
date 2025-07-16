@@ -28,7 +28,9 @@ pub struct VNS<T: GraphCore+GraphRng> {
 
     neighborhood_sample_sizes: &'static [usize],
 
-    dist_matrix: Vec<u32>
+    dist_matrix: Vec<u32>,
+
+    recompute_distorsion: bool
 }   
 
 impl<T: GraphCore+GraphRng> VNS<T> {
@@ -54,7 +56,8 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         VNS { n, g, tree_buf,
             tarjan_solver, edges, prng, edge_betweeness_centrality,
             k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
-            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix }
+            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix,
+        recompute_distorsion: false }
 
 
     }
@@ -116,6 +119,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                     iter_best_disto = disty;
                     iter_best_tree = y;
                     keep_going = true;  // au moins 1 improvement => on continue
+                    println!("{}", iter_best_disto);
                 }
             }
             
@@ -158,7 +162,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
             None
         };
 
-        let recompute_dist = false;
+        let recompute_dist = self.recompute_distorsion;
 
 
         for _iter_id in 0..niter {
@@ -221,7 +225,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
         }
 
-        if !recompute_dist {x_real_dist = x.distorsion::<T>(&self.g, &self.dist_matrix)};
+        //if !recompute_dist {x_real_dist = x.distorsion::<T>(&self.g, &self.dist_matrix)};
         (x, xdist, x_real_dist, trace)
     }
 
@@ -229,10 +233,13 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         let mut x = self.g.random_subtree(&mut self.prng);
         let xdist = x.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
-        let (_y, _ydist, y_real_dist, trace) = self.gvns(x, xdist, niter, -1.0);
-
+        let (_y, _ydist, _, trace) = self.gvns(x, xdist, niter, -1.0);
+        let y_real_dist = _y.distorsion::<T>(&self.g, &self.dist_matrix);
         (y_real_dist, trace)
     }
+
+
+
 
     pub fn gvns_random_start_nonapprox_timeout(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
         let mut x = self.g.random_subtree(&mut self.prng);
@@ -242,6 +249,17 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
         (y_real_dist, trace)
     }
+
+    
+    pub fn gvns_random_start_timeout_no_distorsion(&mut self, time_limit: f64) -> (RootedTree, Vec<TraceData>) {
+        let mut x = self.g.random_subtree(&mut self.prng);
+        let xdist = x.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+        self.recompute_distorsion = false;
+        let (_y, _ydist, _, trace) = self.gvns(x, xdist, 10000, time_limit);
+
+        (_y, trace)
+    }
+
 
 }
 

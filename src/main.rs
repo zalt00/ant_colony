@@ -4,6 +4,7 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 
 
+use crate::community_solver::Solver;
 use crate::distorsion_heuristics::Num;
 use crate::graph::parent_tree::ParentTree;
 use pyo3::ffi::c_str;
@@ -27,6 +28,7 @@ use crate::config::Profile;
 use crate::config::Config;
 use crate::config::AntColonyProfile;
 
+pub mod community_solver;
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;
@@ -200,6 +202,9 @@ fn main() {
         let dt = Data::load_benchmark_directory("./data/Graph Benchmark");
         dt.save("./data/graph-benchmark-samples.data");
 
+        let dt = Data::load_benchmark_directory("./data/social_network");
+        dt.save("./data/social-network-samples.data");
+
 
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         profiles.insert("disto_approx".to_string(), Profile::DistoApprox);
@@ -266,7 +271,7 @@ fn main() {
                         for _tree in 0..n_trees {
                             println!("graph {}/{}, tree {}/{}", _graph_id+1, n_diff_graph, _tree+1, n_trees);
                             let mut t = g.random_subtree(&mut prng);
-                            let disto = t.new_disto_approx();
+                            let disto = t.new_disto_approx4();
                             (t, _) = vns.vnd(t, disto as Num);
 
                             let mut degrees = vec![];
@@ -433,6 +438,46 @@ fn main() {
 
                 Profile::NewDistoApprox => {
 
+                    use pyo3::prelude::*;
+                    
+                    pyo3::prepare_freethreaded_python();
+                    let code = c_str!(include_str!("../graph_tool_test.py"));
+
+                    let mut prng = Prng::seed_from_u64(1671);
+                    let _data = Data::load("data/social-network-samples.data");
+                    let gdt = &_data.samples[0];
+                    println!("{}", gdt.label);
+                    println!("n={}, m={}", gdt.n, gdt.m);
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    //let g = CompressedGraph::clique_cycle(50, 50);
+
+                    //let y = VNS::<CompressedGraph>::auto_parameters_solve(gdt, 121, 40.0);
+                    let mut blocks: Vec<u64> = vec![];
+                    Python::with_gil(|py| {
+                        let fun: Py<PyAny> = PyModule::from_code(
+                            py,
+                            code,
+                            c".\\..\\graph_tool_test.py",
+                            c"graph_tool_test",
+                        ).or_else(|err| {println!("{}", err.traceback(py).unwrap()); Err(err)})
+                        .unwrap()
+                        .getattr("find_communities").expect("rip2")
+                        .into();
+
+                        let kwargs = PyDict::new(py);
+                        kwargs.set_item("edges", g.get_edges()).expect("bah");
+                        kwargs.set_item("kmin", 300).expect("bah");
+                        kwargs.set_item("kmax", 800).expect("bah");
+
+                        let blocks_py = fun.call(py, (), Some(&kwargs)).expect("beuh");
+                        blocks = blocks_py.extract(py).expect("beuh");
+                        //println!("{:?}", blocks);
+                    });
+
+                    let mut f = File::create("blocks.json").expect("a");
+                    write!(f, "{}", serde_json::to_string(&blocks).unwrap()).unwrap();
+
+
                     println!("loading samples...");
                     let _data = Data::load("data/graph-benchmark-samples.data");
                     let mut prng = Prng::seed_from_u64(1671);
@@ -454,7 +499,7 @@ fn main() {
                     println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
                     //t.update_parents();
-                    let d3 = t.new_disto_approx2();
+                    let d3 = t.new_disto_approx4();
                     println!("{} {:?}", d3, now.elapsed());
 
                     let now = Instant::now();
@@ -462,7 +507,7 @@ fn main() {
                     println!("graph gen {:?}", now.elapsed());
                     let now = Instant::now();
                     //t.update_parents();
-                    let d3 = t.new_disto_approx3();
+                    let d3 = t.new_disto_approx4();
                     println!("{} {:?}", d3, now.elapsed());
 
                     let now = Instant::now();

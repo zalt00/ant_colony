@@ -363,6 +363,7 @@ impl RootedTree {
                 i += 1;
             }
         }
+        self.arity.fill(0);
         self.recompute_arity();
     }
 
@@ -386,7 +387,7 @@ impl RootedTree {
     fn recompute_depths_rec(&mut self, u: usize) {
         if self.depths[u] == usize::MAX {
             self.recompute_depths_rec(self.parent[u]);
-            self.depths[u] = self.depths[self.parent[u]]
+            self.depths[u] = self.depths[self.parent[u]] + 1
         }
     }
 

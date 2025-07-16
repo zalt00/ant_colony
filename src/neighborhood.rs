@@ -16,6 +16,18 @@ pub enum NeighborhoodStrategies {
 impl RootedTree {
     pub fn edge_removable_for_swap(&mut self, ei: usize, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
     {
+        // let ar_bkp = self.arity.clone();
+        // self.arity.fill(0);
+        // self.recompute_arity();
+        // if ar_bkp != self.arity {
+        //     println!("{:?}", ar_bkp);
+        //     println!("{:?}", &self.arity);
+        //     println!("");
+        // }
+
+        // self.update_leaves();
+
+        // self.recompute_depths();
 
         // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
         let [u, v] = edges[ei];
@@ -26,7 +38,7 @@ impl RootedTree {
             let mut resv = vec![];
             let mut wu = u;
             let mut wv = v;
-
+            // println!("la1");
             while self.depths[wu] > self.depths[wv] {
                 resu.push(wu);
                 wu = self.parent[wu];
@@ -36,6 +48,7 @@ impl RootedTree {
                 resv.push(wv);
                 wv = self.parent[wv];
             }
+            // println!("la2");
 
             while wu != wv {
                 // println!("w {} {} {}", wu, wv, self.root);
@@ -43,12 +56,29 @@ impl RootedTree {
                 resu.push(wu);
                 resv.push(wv);
 
+                // println!("{} {} ", wu, wv);
+                // println!("depth {} {} ", self.depths[wu], self.depths[wv]);
+                // println!("root {}", self.root);
+                // println!("{:?}", &self.parent);
+                // println!("{:?}", &self.depths);
+                // for i in 0..self.n {
+                //     if i == self.root {
+                //         print!("root, ");
+                //     } else {
+                //         print!("{}, ", self.depths[self.parent[i]]);
+                //     }
+                // }
+                // print!("\n");
+
+                // println!("{:?}", &self.leaves);
+
                 wu = self.parent[wu];
                 if wv == usize::MAX {
                     println!("{:?} {:?} {}", resu, resv, self.root);
                 }
                 wv = self.parent[wv];
-            }
+            }            
+
 
             resu.push(wu);
             resv.push(wv);
@@ -95,8 +125,8 @@ impl RootedTree {
 
         
         // aaaaarg j'avais oublie a ce truc -> dans l'idee pas forcement utile de tout calculer
-        self.recompute_depths();
         self.update_leaves();
+        self.recompute_depths();
 
     }
 

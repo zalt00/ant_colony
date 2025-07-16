@@ -182,34 +182,6 @@ impl RootedTree {
     }
 
 
-    pub fn new_disto_approx2(&mut self) -> u64 {
-        let mut size = vec![0; self.n];
-        self.precalcul_sizes(self.root, &mut size);
-        let mut s3 = 0;
-        for u in 0..self.n {
-            if self.root == u {
-                // euh cette ligne ne sert a rien
-                s3 += self.depths[u] as u64 * (1 + self.n as u64)
-            } else {
-                let su = size[u];
-                let spu = size[self.parent[u]];
-                s3 += self.depths[u] as u64 * (1 + self.n as u64 - su * (spu - su + 1))
-                        + su * (spu - su - 1);
-            }
-        }
-        s3
-    }
-
-    pub fn new_disto_approx3(&mut self) -> u64 {
-        let mut size = vec![0; self.n];
-        self.precalcul_sizes(self.root, &mut size);
-        let mut s3 = (self.n * (self.n + 1))  as u64;
-        for u in 0..self.n {
-            let su = size[u];
-            s3 += (self.depths[u] as u64 * (self.n + 1) as u64) - su * (su + 1)
-        }
-        s3
-    }
     pub fn new_disto_approx4(&mut self) -> u64 {
         let mut size = vec![0; self.n];
         self.precalcul_sizes(self.root, &mut size);

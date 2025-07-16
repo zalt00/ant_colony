@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
 
+use crate::graph::compressed_graph::CompressedGraph;
 use crate::graph::graph_core::GraphCore;
 use crate::my_rand::Prng;
 use crate::{graph::{MatGraph, RootedTree}, utils::Uf};
@@ -88,8 +89,9 @@ pub trait GraphRng: GraphCore {
     }
 
     fn is_connected(&self) -> bool {
-                let edges = self.get_edges();
+        let edges = self.get_edges();
         let node_count = self.vertex_count();
+        println!("nd {} {}", node_count, edges.len());
 
         // 3) Création d'un graphe non orienté, poids () sur les arêtes
         let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
@@ -106,7 +108,9 @@ pub trait GraphRng: GraphCore {
         }
 
         // 6) Génération et affichage du DOT (sans étiquette sur les arêtes)
-        petgraph::algo::connected_components(&g) == 1
+        let ccount = petgraph::algo::connected_components(&g);
+        //println!("{}", ccount);
+        ccount == 1
     }
 
     fn is_connected_without(&self, edge: [usize; 2]) -> bool {
@@ -146,6 +150,7 @@ pub trait GraphRng: GraphCore {
         let mut m = 0;
         let mut i = 0;
         while m < n - 1 {
+            //println!("m: {}, n: {}", m, n);
             let [u, v] = edges[i];
 
             if uf.find(u) != uf.find(v) {
@@ -312,9 +317,9 @@ pub struct GraphData {
 }
 
 impl GraphData {
-    pub fn from_graph(g: &MatGraph, compute_ebc: bool, compute_dm: bool) -> GraphData {
+    pub fn from_graph<T: GraphCore>(g: &T, compute_ebc: bool, compute_dm: bool) -> GraphData {
 
-        let n = g.n;
+        let n = g.vertex_count();
         let edges = g.get_edges();
         let m = edges.len();
         println!("computing ebc..");
@@ -340,8 +345,11 @@ impl GraphData {
         let reader = BufReader::new(file);
         for line_res in reader.lines() {
             if let Ok(line) = line_res {
-                let values: Vec<usize> = line.split(' ').map(|xs| {xs.parse::<usize>().unwrap()}).collect();
-                edges.push([values[0], values[1]])
+                let values: Vec<usize> = line.split(char::is_whitespace).map(|xs| {xs.parse::<usize>().unwrap()}).collect();
+                if values[0] < values[1] || true {
+                    edges.push([values[0], values[1]])
+
+                }
             } else {
                 panic!()
             }
@@ -355,7 +363,7 @@ impl GraphData {
         let m = edges.len();
 
         let gdt = GraphData { label: String::new(), n, m, edges, ebc: None, dist_matrix: None };
-        let g = gdt.to_graph();
+        let g: CompressedGraph = gdt.to_graph();
           
         let mut gdt2 = GraphData::from_graph(&g, false, false);
         gdt2.label = path.to_string();
@@ -380,8 +388,14 @@ impl GraphData {
         let dm = if let Some(dm) = &self.dist_matrix {
             dm.clone()
         } else {
-            println!("compute dm");
-            g.get_dist_matrix()
+            if self.n > 20000 {
+                println!("dm too big, ignoring computation.");
+                vec![]
+            } else {
+                println!("compute dm");
+                g.get_dist_matrix()
+            }
+
 
         };
 

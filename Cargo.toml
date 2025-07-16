@@ -12,7 +12,7 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 bincode = "*"
 glob = "*"
-pyo3 = { version = "0.25.1", features = ["extension-module"] }
+pyo3 = { version = "0.25.1" }
 
 
 
@@ -21,7 +21,10 @@ debug = false
 overflow-checks = false
 
 [features]
+
+extension-module = ["pyo3/extension-module"]
 default = []
+
 use_heuristic = []
 need_ebc = []
 need_tarjan = []
