@@ -243,6 +243,7 @@ fn main() {
 
             match profile {
                 Profile::ClusteringTest => {
+                    let now = Instant::now();
                     let _data = Data::load("data/social-network-samples.data");
                     let gdt = &_data.samples[0];
                     println!("{}", gdt.label);
@@ -268,6 +269,8 @@ fn main() {
                     solver.init_block_graph();
                     let mut tree = solver.launch::<TestRandom, BestRandom>();
                     println!("heuristic: {}", tree.new_disto_approx4());
+
+                    println!("total execution time: {:?}", now.elapsed());
 
                 },
                 Profile::RegularGraph => {
