@@ -91,7 +91,7 @@ pub trait GraphRng: GraphCore {
     fn is_connected(&self) -> bool {
         let edges = self.get_edges();
         let node_count = self.vertex_count();
-        println!("nd {} {}", node_count, edges.len());
+        // println!("nd {} {}", node_count, edges.len());
 
         // 3) Création d'un graphe non orienté, poids () sur les arêtes
         let mut g: petgraph::graph::Graph<usize, (), petgraph::Undirected> = petgraph::graph::Graph::new_undirected();
@@ -109,7 +109,7 @@ pub trait GraphRng: GraphCore {
 
         // 6) Génération et affichage du DOT (sans étiquette sur les arêtes)
         let ccount = petgraph::algo::connected_components(&g);
-        //println!("{}", ccount);
+        // println!("{}", ccount);
         ccount == 1
     }
 

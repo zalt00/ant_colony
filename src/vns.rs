@@ -119,7 +119,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                     iter_best_disto = disty;
                     iter_best_tree = y;
                     keep_going = true;  // au moins 1 improvement => on continue
-                    println!("{}", iter_best_disto);
+                    //println!("{}", iter_best_disto);
                 }
             }
             

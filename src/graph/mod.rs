@@ -11,7 +11,9 @@ use self::compressed_graph::init_compressed_vecvec;
 use self::graph_core::GraphCore;
 use self::graph_generator::GraphRng;
 
-
+#[cfg(feature="large_graph")]
+pub const N: usize = 2000000;
+#[cfg(not(feature="large_graph"))]
 pub const N: usize = 50000;
 
 pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
@@ -25,7 +27,7 @@ pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MatGraph {
     pub(crate) n: usize,
     pub(crate) adj_tab: Vec<usize>

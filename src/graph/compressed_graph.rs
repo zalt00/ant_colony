@@ -26,7 +26,7 @@ pub fn init_compressed_vecvec_idx(n: usize, degrees: &Vec<usize>)
         idx
     }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct CompressedGraph {
     pub(crate) n: usize,
     idx: Vec<usize>,

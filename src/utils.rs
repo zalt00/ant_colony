@@ -1,4 +1,6 @@
 
+use std::{collections::HashMap, hash::Hash, ops::Deref};
+
 use crate::{graph::RootedTree, graph::graph_core::GraphCore};
 
 pub struct SegmentTree (Vec<f64>);
@@ -231,6 +233,71 @@ impl TarjanSolver {
     }
 
 
+}
+
+pub trait PairIterExt: Iterator<Item = [Self::It; 2]> 
+    where <Self as PairIterExt>::It: Copy+Deref<Target = Self::Tar>,
+          <Self as PairIterExt>::Tar: Copy+Ord 
+{
+    type It;
+    type Tar;
+    fn sorted_pairs(&mut self) -> PairIterator<Self> where Self: Sized {
+        PairIterator { iterator: self }
+    }
+}
+
+pub struct PairIterator<'a, T: PairIterExt> {
+    iterator: &'a mut T
+}
+
+impl<'a, T: PairIterExt> Iterator for PairIterator<'a, T> {
+    type Item = [T::Tar; 2];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some([u, v]) = self.iterator.next() {
+            Some([u.min(*v), u.max(*v)])
+        } else {
+            None
+        }
+    }
+}
+
+impl<I2: Copy+Ord, I: Copy+Deref<Target = I2>, T: Iterator<Item = [I; 2]>> PairIterExt for T {
+    type It = I;
+    type Tar = I2;
+}
+
+pub trait PairExt where Self::T: Ord+Copy {
+    type T;
+    fn sorted(self) -> Self;
+}
+
+impl<T2: Ord+Copy> PairExt for [T2; 2] {
+    type T = T2;
+    fn sorted(self) -> Self {
+        if self[0] < self[1] {
+            self
+        } else {
+            [self[1], self[0]]
+        }
+    }
+}
+
+pub trait HashMapExt {
+    type T;
+    fn inverse(self) -> Self::T;
+}
+
+impl<A, B> HashMapExt for HashMap<A, B> where B: Hash+Eq {
+    type T = HashMap<B, A>;
+
+    fn inverse(mut self) -> Self::T {
+        let mut hmap2 = HashMap::with_capacity(self.len());
+        for (k, v) in self.drain() {
+            hmap2.insert(v, k);
+        }
+        hmap2
+    }
 }
 
 

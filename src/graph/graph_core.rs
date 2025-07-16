@@ -1,4 +1,5 @@
 use crate::graph::N;
+static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
 
 pub trait GraphCore: Clone {
 
@@ -97,8 +98,8 @@ pub trait GraphCore: Clone {
 
         mat
     }
+
     fn bfs_further_vertex(&self, u: usize, construct_path: bool, path: &mut Vec<usize>) -> usize {
-        static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
         
         let n = self.vertex_count();
 
@@ -145,7 +146,6 @@ pub trait GraphCore: Clone {
     }
 
     fn bfs(&self, u: usize, dist_matrix: &mut Vec<u32>) {
-        static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
         
         if dist_matrix[u + self.vertex_count() * u] != u32::MAX {
             return
@@ -179,6 +179,46 @@ pub trait GraphCore: Clone {
     }
 
 
+    fn bfs_connected_components(&self) -> (i32, Vec<i32>) {
+        let mut cc = 0;
+        let n: usize = self.vertex_count();
+
+        let mut visited = vec![-1; n];
+
+
+        for u in 0..n {
+            if visited[u] == -1 {
+                
+                let mut i = 0;
+                let mut j = 1;
+                unsafe{QUEUE[0] = (u, 0)};
+                visited[u] = cc;
+
+                while i < j {
+                    unsafe{
+                        let (v, _) = QUEUE[i];
+                        i += 1;
+
+                        for &nv in self.get_neighbors(v) {
+                            if visited[nv] == -1 {
+                                visited[nv] = cc;
+                                QUEUE[j] = (nv, 0);
+                                j += 1;
+                            }
+                        }
+                    }
+                }
+
+
+                cc += 1;
+            }
+        }
+
+        (cc, visited)
+
+
+
+    }
 
     fn clustering(&self) -> (Vec<usize>, Vec<usize>) {
         let mut c = 0;

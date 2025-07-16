@@ -34,6 +34,8 @@ mean_path_heuristic = ["use_heuristic"]
 verbose = []
 enable_counters = []
 
+large_graph = []
+
 [lib]
 name = "mylib"
 path = "src/lib.rs"
