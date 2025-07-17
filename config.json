@@ -1,18 +1,12 @@
 {
   "profiles": {
-    "ac-c8000-evap0.4-w0.5-seed143": {
-      "AntColony": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 143,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
+    "benchmark2": "Benchmark",
+    "clustering_dblp": {
+      "ClusteringTest": 0
     },
-    "new_dist_approx": "NewDistoApprox",
-    "reg_graph": "RegularGraph",
-    "clique-cycle": "CliqueCycle",
+    "clustering_facebook": {
+      "ClusteringTest": 2
+    },
     "vns-vs-aco": {
       "VNSvsACO": {
         "c": 8000.0,
@@ -23,7 +17,24 @@
         "ic": 600
       }
     },
-    "clustering_test": "ClusteringTest",
+    "ntest1": "NeighborhoodTest",
+    "clique-cycle": "CliqueCycle",
+    "ac-c8000-evap0.4-w0.5-seed143": {
+      "AntColony": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 143,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
+    "reg_graph": "RegularGraph",
+    "clustering_enron": {
+      "ClusteringTest": 1
+    },
+    "benchmark": "VNSFullTest",
+    "new_dist_approx": "NewDistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
         "c": 8000.0,
@@ -34,9 +45,6 @@
         "ic": 600
       }
     },
-    "disto_approx": "DistoApprox",
-    "ntest1": "NeighborhoodTest",
-    "benchmark2": "Benchmark",
-    "benchmark": "VNSFullTest"
+    "disto_approx": "DistoApprox"
   }
 }

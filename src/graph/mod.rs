@@ -3,6 +3,7 @@ use std::{fmt::Debug, u32};
 
 use bincode::{Decode, Encode};
 use rustworkx_core::petgraph;
+use serde::{Deserialize, Serialize};
 
 pub mod graph_core;
 pub mod graph_generator; 
@@ -259,7 +260,7 @@ impl GraphRng for MatGraph {}
 
 
 
-#[derive(Clone, Encode, Decode)]
+#[derive(Clone, Encode, Decode, Serialize, Deserialize)]
 pub struct RootedTree {
     pub n: usize,
     pub parent: Vec<usize>,

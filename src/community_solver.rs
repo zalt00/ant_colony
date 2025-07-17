@@ -113,6 +113,7 @@ pub trait Partitioner {
     }
     fn load_partition_or_compute_it<T: GraphCore+GraphRng>(&mut self, g: &T, path_prefix: &str, force_recompute: bool) -> Vec<u64> {
         if force_recompute {
+            println!("info - recomputing partition");
             self.partition(g)
         } else {
             if let Ok(mut file) = File::open(format!("{}-blocks-{}.data", path_prefix, Self::partitioner_label())) {
@@ -121,7 +122,7 @@ pub trait Partitioner {
                     bincode::config::standard()
                 ).expect("wee")
             } else {
-                println!("info - recomputing partition because the file was not found");
+                println!("info - computing partition because the file was not found");
                 self.partition(g)
             }
         }
@@ -243,12 +244,11 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
             let hmap = renumber_edges(edges);
             self.node_renumbering.push(hmap.inverse())
         }
-        let mut err = 0;
 
         for (i, edges) in edges_vecvec.iter().enumerate() {
             let sg = T::from_edges(count[i], edges);
-            err += sg.vertex_count().abs_diff(562);
-            println!("sgn={}", sg.vertex_count());
+            //err += sg.vertex_count().abs_diff(562);
+            //println!("sgn={}", sg.vertex_count());
             //sg.is_connected();
             let (cc, vis) = sg.bfs_connected_components();
             //println!("cc {}", cc);
@@ -267,7 +267,6 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
 
         }
 
-        println!("err={}", err);
 
 
         // seconde passe
@@ -314,16 +313,17 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
 
     pub fn launch<Sbig: Solver<T=T>, Ssmall: Solver<T=T>>(&mut self, trace_save_path: Option<&str>) -> RootedTree {
         let mut ans_tree = self.g.clone_empty();
+        let threshold = self.g.vertex_count() / self.unique_block_count / 5;
 
         let mut community_trees = Vec::new();
         
         for (i, sg) in self.sub_graphs.drain(..).enumerate() {
             println!("solving for subgraph {}/{}, n={}", i + 1, self.unique_block_count, sg.vertex_count());
-            let mut tree = if sg.vertex_count() > 100 {
+            let mut tree = if sg.vertex_count() > threshold {
                 println!("using solver 1");
                 Sbig::auto_parameters_solve(sg, vec![], vec![], 18268 + i as u64 * 21, 200.0)
             } else {
-                println!("using solver 2");
+                println!("using solver 2 (threshold={})", threshold);
                 Ssmall::auto_parameters_solve(sg, vec![], vec![], 18268 + i as u64 * 21, 1.0)
             };
 
@@ -349,14 +349,12 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
             ans_tree.add_edge_unckecked(u, v);
         }
         
-        let ans_rooted_tree = RootedTree::from_graph(&ans_tree, 0);
+        let mut ans_rooted_tree = RootedTree::from_graph(&ans_tree, 0);
         if let Some(path) = trace_save_path {
-            let trace = (&ans_rooted_tree, community_trees, block_tree);
-            bincode::encode_into_std_write(
-                trace, 
-                &mut File::create(path).expect("welp"),
-                bincode::config::standard()
-            ).expect("welp2");
+            let trace = (ans_rooted_tree.new_disto_approx4(), &ans_rooted_tree, community_trees, block_tree);
+            
+            serde_json::to_writer_pretty(&mut File::create(path).expect("welp"), &trace).expect("welp");
+
         }
 
         ans_rooted_tree

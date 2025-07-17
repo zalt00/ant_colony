@@ -5,6 +5,8 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 
 
+#[cfg(feature="louvain")]
+use crate::community_solver::LouvainPartitioner;
 use crate::community_solver::{BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom};
 use crate::distorsion_heuristics::Num;
 use crate::graph::parent_tree::ParentTree;
@@ -182,8 +184,10 @@ pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
 
 }
 
-
-
+#[cfg(not(feature="louvain"))]
+type MyPartitioner = MultiBfsPartitioner;
+#[cfg(feature="louvain")]
+type MyPartitioner = LouvainPartitioner;
 
 fn main() {
     test_segment_tree();
@@ -228,7 +232,9 @@ fn main() {
             AntColonyProfile {c: 8000.0, evap: 0.4, seed: 123, w: 0.5, k: 10, ic: 600}
         ));
 
-        profiles.insert("clustering_test".to_string(), Profile::ClusteringTest);
+        profiles.insert("clustering_dblp".to_string(), Profile::ClusteringTest(0));
+        profiles.insert("clustering_enron".to_string(), Profile::ClusteringTest(1));
+        profiles.insert("clustering_facebook".to_string(), Profile::ClusteringTest(2));
 
 
         let cfg = Config {profiles};
@@ -243,7 +249,7 @@ fn main() {
             println!("% launching profile <{}>:", mode);
 
             match profile {
-                Profile::ClusteringTest => {
+                Profile::ClusteringTest(gi) => {
 
 
                     let mut map = HashMap::new();
@@ -256,7 +262,7 @@ fn main() {
 
                     let now = Instant::now();
                     let _data = Data::load("data/social-network-samples.data");
-                    let gdt = &_data.samples[0];
+                    let gdt = &_data.samples[*gi];
                     println!("{}", gdt.label);
                     println!("n={}, m={}", gdt.n, gdt.m);
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
@@ -266,8 +272,8 @@ fn main() {
                     
                     
                     println!("loading blocks...");
-                    let mut partitioner = MultiBfsPartitioner;
-                    let mut blocks = partitioner.load_partition_or_compute_it(&g, &gdt.label, true);
+                    let mut partitioner = MyPartitioner {};
+                    let mut blocks = partitioner.load_partition_or_compute_it(&g, &gdt.label, false);
                     partitioner.save_partition(&blocks, &gdt.label);
                     
                     let mut hmap = HashMap::new();
@@ -291,7 +297,7 @@ fn main() {
 
 
 
-                    // let mut tree = solver.launch::<TestRandom, BestRandom>(Some(&format!("{}-launch-result.data", gdt.label)));
+                    // let mut tree = solver.launch::<TestRandom, BestRandom>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
                     // println!("heuristic: {}", tree.new_disto_approx4());
 
                     println!("total execution time: {:?}", now.elapsed());

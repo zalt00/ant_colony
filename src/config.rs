@@ -31,7 +31,7 @@ pub enum Profile {
 
     RegularGraph,
 
-    ClusteringTest
+    ClusteringTest(usize)
 }
 
 #[derive(Serialize, Deserialize)]
