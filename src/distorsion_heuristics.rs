@@ -79,7 +79,7 @@ impl RootedTree {
     }
 
     #[cfg(not(feature = "use_heuristic"))]
-    pub fn heuristic<T: GraphCore>(&self, g: &T, _edges: &Vec<[usize; 2]>,
+    pub fn heuristic<T: GraphCore>(&mut self, g: &T, _edges: &Vec<[usize; 2]>,
             _tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, dm: &Vec<u32>) -> Num {
 
         self.distorsion::<T>(g, dm)

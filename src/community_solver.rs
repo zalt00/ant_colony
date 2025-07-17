@@ -1,10 +1,16 @@
-use std::{collections::HashMap, hash::Hash, time::Instant};
+use std::fs::File;
+use std::{collections::HashMap, time::Instant};
 
+use pyo3::ffi::c_str;
+use pyo3::types::PyDict;
 use rand::SeedableRng;
-use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, graph_generator::{GraphData, GraphRng}, RootedTree}, my_rand::Prng, utils::{HashMapExt, PairExt}, vns::VNS};
-use crate::utils::PairIterExt;
+use crate::vns::VNS;
+use crate::utils::{HashMapExt, PairExt, TarjanSolver};
+use crate::my_rand::Prng;
+use crate::graph::{compressed_graph::CompressedGraph, graph_core::GraphCore};
+use crate::graph::RootedTree;
+use crate::graph::graph_generator::{Data, GraphRng};
 
 pub trait Solver {
     type T: GraphCore+GraphRng;
@@ -24,7 +30,7 @@ pub struct BestRandom;
 
 impl Solver for BestRandom {
     type T = CompressedGraph;
-    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+    fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
         assert!(&g.is_connected());
 
         let mut prng = Prng::seed_from_u64(seed);
@@ -48,15 +54,139 @@ impl Solver for BestRandom {
     }
 }
 
+pub struct BestRandomVND;
+
+impl Solver for BestRandomVND {
+    type T = CompressedGraph;
+    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, _dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+        assert!(&g.is_connected());
+
+        let mut prng = Prng::seed_from_u64(seed);
+        let now = Instant::now();
+        
+        let mut tree = g.random_subtree(&mut prng);
+        let dm = g.get_dist_matrix();
+        let mut disto = tree.distorsion(&g, &dm);
+        let mut vns = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), 2);
+        let edges = g.get_edges();
+        let mut ts = TarjanSolver::new(g.n, &g);
+        
+        while now.elapsed().as_secs_f64() < time_limit {
+            let mut tree2 = g.random_subtree(&mut prng);
+            let heuristic = tree2.heuristic(&g, &edges, &mut ts, &ebc, &dm);
+            let (tree2, _) = vns.vnd(tree2, heuristic);
+            let disto2 = tree2.distorsion(&g, &dm);
+            if disto2 < disto {
+                disto = disto2;
+                tree = tree2;
+            }
+        }
+
+        tree
+
+    }
+}
+
+
+
 pub struct TestRandom;
 
 impl Solver for TestRandom {
     type T = CompressedGraph;
 
-    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+    fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, seed: u64, _time_limit: f64) -> RootedTree {
         g.random_subtree(&mut Prng::seed_from_u64(seed))
     }
 }
+
+// partionner
+
+pub trait Partitioner {
+    fn partitioner_label() -> &'static str;
+    fn partition<T: GraphCore+GraphRng>(&mut self, g: &T) -> Vec<u64>;
+    fn save_partition(&self, partition: &Vec<u64>, path_prefix: &str) {
+        bincode::encode_into_std_write(
+                partition, 
+                &mut File::create(format!("{}-blocks-{}.data", path_prefix, Self::partitioner_label())).expect("welp"),
+                bincode::config::standard()
+        ).expect("welp2");
+    }
+    fn load_partition_or_compute_it<T: GraphCore+GraphRng>(&mut self, g: &T, path_prefix: &str, force_recompute: bool) -> Vec<u64> {
+        if force_recompute {
+            self.partition(g)
+        } else {
+            if let Ok(mut file) = File::open(format!("{}-blocks-{}.data", path_prefix, Self::partitioner_label())) {
+                bincode::decode_from_std_read(
+                    &mut file,
+                    bincode::config::standard()
+                ).expect("wee")
+            } else {
+                println!("info - recomputing partition because the file was not found");
+                self.partition(g)
+            }
+        }
+    }
+}
+
+pub struct LouvainPartitioner;
+impl Partitioner for LouvainPartitioner {
+    fn partitioner_label() -> &'static str {
+        "louvain"
+    }
+
+    fn partition<T: GraphCore+GraphRng>(&mut self, g: &T) -> Vec<u64> {
+        println!("launching {}", Self::partitioner_label());
+        use pyo3::prelude::*;
+
+        pyo3::prepare_freethreaded_python();
+        let code = c_str!(include_str!("../graph_tool_test.py"));
+
+        let k = g.vertex_count().isqrt();
+
+        //let g = CompressedGraph::clique_cycle(50, 50);
+
+        //let y = VNS::<CompressedGraph>::auto_parameters_solve(gdt, 121, 40.0);
+        let mut blocks: Vec<u64> = vec![];
+        Python::with_gil(|py| {
+            let fun: Py<PyAny> = PyModule::from_code(
+                py,
+                code,
+                c".\\..\\graph_tool_test.py",
+                c"graph_tool_test",
+            ).or_else(|err| {println!("{}", err.traceback(py).unwrap()); Err(err)})
+            .unwrap()
+            .getattr("find_communities").expect("rip2")
+            .into();
+
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("edges", g.get_edges()).expect("bah");
+            kwargs.set_item("kmin", k / 2).expect("bah");
+            kwargs.set_item("kmax", k * 2).expect("bah");
+
+            let blocks_py = fun.call(py, (), Some(&kwargs)).expect("beuh");
+            blocks = blocks_py.extract(py).expect("beuh");
+            //println!("{:?}", blocks);
+        });
+
+        blocks
+
+    }
+}
+
+pub struct MultiBfsPartitioner;
+
+impl Partitioner for MultiBfsPartitioner {
+    fn partitioner_label() -> &'static str {
+        "multibfs"
+    }
+
+    fn partition<T: GraphCore+GraphRng>(&mut self, g: &T) -> Vec<u64> {
+        assert!(g.is_connected());
+        g.multisource_bfs_partition(g.vertex_count().isqrt(), &mut Prng::seed_from_u64(121))
+    }
+}
+
+
 
 pub struct CommunitySolver<T: GraphCore+GraphRng+Default> {
     g: T,
@@ -113,23 +243,31 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
             let hmap = renumber_edges(edges);
             self.node_renumbering.push(hmap.inverse())
         }
+        let mut err = 0;
 
         for (i, edges) in edges_vecvec.iter().enumerate() {
             let sg = T::from_edges(count[i], edges);
-
+            err += sg.vertex_count().abs_diff(562);
+            println!("sgn={}", sg.vertex_count());
             //sg.is_connected();
             let (cc, vis) = sg.bfs_connected_components();
             //println!("cc {}", cc);
 
             for (u_sg, &c) in vis.iter().enumerate() {
-                let u = self.node_renumbering[i][&u_sg];
-                if c != 0 {
-                    self.blocks[u] = self.unique_block_count as u64 + (c as u64 - 1);
+                //println!("i={} ec={} sgn={} {} {}", i, edges.len(),sg.vertex_count(), u_sg, c);
+                if sg.vertex_count() > 1 {
+                    let u = self.node_renumbering[i][&u_sg];
+                    if c != 0 {
+                        self.blocks[u] = self.unique_block_count as u64 + (c as u64 - 1);
+                    }
                 }
+
             }
             self.unique_block_count += cc as usize - 1;
 
         }
+
+        println!("err={}", err);
 
 
         // seconde passe
@@ -170,13 +308,14 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
             //println!("cc {}", cc);
 
         }
-
+        println!("edges to check {:?}", self.block_graph_edges_hmap.iter().map(|(k, v)| {v.len()}).sum::<usize>());
         self.block_graph = T::from_edges(self.unique_block_count, &self.block_graph_edges_hmap.iter().map(|tpl| {*tpl.0}).collect());
     }
 
-    pub fn launch<Sbig: Solver<T=T>, Ssmall: Solver<T=T>>(&mut self) -> RootedTree {
+    pub fn launch<Sbig: Solver<T=T>, Ssmall: Solver<T=T>>(&mut self, trace_save_path: Option<&str>) -> RootedTree {
         let mut ans_tree = self.g.clone_empty();
 
+        let mut community_trees = Vec::new();
         
         for (i, sg) in self.sub_graphs.drain(..).enumerate() {
             println!("solving for subgraph {}/{}, n={}", i + 1, self.unique_block_count, sg.vertex_count());
@@ -196,6 +335,9 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
                 ans_tree.add_edge_unckecked(self.node_renumbering[i][&u], self.node_renumbering[i][&v]);
             }
 
+            community_trees.push(tree);
+
+
         }
         println!("solving for block graph");
         let block_tree = Sbig::auto_parameters_solve(self.block_graph.clone(), vec![], vec![], 1212, 20.0);
@@ -207,7 +349,17 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
             ans_tree.add_edge_unckecked(u, v);
         }
         
-        RootedTree::from_graph(&ans_tree, 0)
+        let ans_rooted_tree = RootedTree::from_graph(&ans_tree, 0);
+        if let Some(path) = trace_save_path {
+            let trace = (&ans_rooted_tree, community_trees, block_tree);
+            bincode::encode_into_std_write(
+                trace, 
+                &mut File::create(path).expect("welp"),
+                bincode::config::standard()
+            ).expect("welp2");
+        }
+
+        ans_rooted_tree
     
     
     }

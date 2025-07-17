@@ -31,7 +31,7 @@ pub struct CompressedGraph {
     pub(crate) n: usize,
     idx: Vec<usize>,
     data: Vec<usize>,
-    degrees: Vec<usize>
+    degrees: Vec<usize>  // current degrees (for add_edge_unchecked)
 }
 
 impl CompressedGraph {
@@ -96,7 +96,7 @@ impl GraphCore for CompressedGraph {
     }
     
     fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>) {
-        println!("wee");
+        // println!("wee");
         init_compressed_vecvec(init_value, self.n, &self.degrees)
     }
 

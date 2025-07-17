@@ -1,10 +1,11 @@
+use std::fmt::format;
 use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
 
 
-use crate::community_solver::{BestRandom, CommunitySolver, Solver, TestRandom};
+use crate::community_solver::{BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom};
 use crate::distorsion_heuristics::Num;
 use crate::graph::parent_tree::ParentTree;
 use pyo3::ffi::c_str;
@@ -243,32 +244,55 @@ fn main() {
 
             match profile {
                 Profile::ClusteringTest => {
+
+
+                    let mut map = HashMap::new();
+
+                    map.entry("poneyland").or_insert_with(|| "ahah");
+                    map.entry("poneyland").or_insert_with(|| panic!());
+
+                    assert_eq!(map["poneyland"], "ahah");
+
+
                     let now = Instant::now();
                     let _data = Data::load("data/social-network-samples.data");
                     let gdt = &_data.samples[0];
                     println!("{}", gdt.label);
                     println!("n={}, m={}", gdt.n, gdt.m);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix();
+                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    
+                    
+                    
+                    
+                    
                     println!("loading blocks...");
-                    let f = File::open("data/social_network/blocks.json").unwrap();
-                    let mut blocks: Vec<u64> = serde_json::from_reader(&f).unwrap();
+                    let mut partitioner = MultiBfsPartitioner;
+                    let mut blocks = partitioner.load_partition_or_compute_it(&g, &gdt.label, true);
+                    partitioner.save_partition(&blocks, &gdt.label);
+                    
                     let mut hmap = HashMap::new();
+                    
                     let mut i = 0_u64;
                     println!("renumbering block id");
                     for b in blocks.iter() {
+                        //print!("{} ", b);
                         hmap.entry(*b).or_insert_with(|| {let j=i; i += 1; j});
                     }
                     for b in blocks.iter_mut() {
                         let v = hmap[b];
                         *b = v;
                     }
+                    //let i = 183;
                     println!("{}", i);
-                    println!("{:?}", &blocks[..100]);
+                    //println!("{:?}", &blocks[33000..33100]);
 
                     let mut solver: CommunitySolver<CompressedGraph> = CommunitySolver::new(g, blocks, i as usize);
                     solver.init_block_graph();
-                    let mut tree = solver.launch::<TestRandom, BestRandom>();
-                    println!("heuristic: {}", tree.new_disto_approx4());
+
+
+
+                    // let mut tree = solver.launch::<TestRandom, BestRandom>(Some(&format!("{}-launch-result.data", gdt.label)));
+                    // println!("heuristic: {}", tree.new_disto_approx4());
 
                     println!("total execution time: {:?}", now.elapsed());
 
@@ -286,7 +310,7 @@ fn main() {
 
                     let mut prng = Prng::seed_from_u64(1671);
                     let _data = Data::load("data/social-network-samples.data");
-                    let gdt = &_data.samples[0];
+                    let gdt = &_data.samples[1];
                     println!("{}", gdt.label);
                     println!("n={}, m={}", gdt.n, gdt.m);
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
@@ -315,7 +339,7 @@ fn main() {
                         //println!("{:?}", blocks);
                     });
 
-                    let mut f = File::create("blocks.json").expect("a");
+                    let mut f = File::create(format!("{}-blocks.json", gdt.label)).expect("a");
                     write!(f, "{}", serde_json::to_string(&blocks).unwrap()).unwrap();
 
                 },

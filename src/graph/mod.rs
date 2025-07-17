@@ -1,6 +1,7 @@
 use std::usize;
 use std::{fmt::Debug, u32};
 
+use bincode::{Decode, Encode};
 use rustworkx_core::petgraph;
 
 pub mod graph_core;
@@ -258,7 +259,7 @@ impl GraphRng for MatGraph {}
 
 
 
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub struct RootedTree {
     pub n: usize,
     pub parent: Vec<usize>,
@@ -340,7 +341,7 @@ impl RootedTree {
         tree
     }
 
-    pub fn precalcul_sizes(&mut self, u: usize, tab: &mut Vec<u64>) {
+    pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut Vec<u64>) {
         static mut QUEUE: [usize; 50000000] = [0; 50000000];
         let mut i = 0;
         let mut j = self.leaves.len();
@@ -404,6 +405,10 @@ impl RootedTree {
         }
         self.recompute_arity();
         (idx, children)
+    }
+
+    pub fn reroot<T: GraphCore>(&self, template: &T, root: usize) -> RootedTree {
+        RootedTree::from_graph(&self.to_graph(template), root)
     }
 
 

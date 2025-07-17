@@ -1,4 +1,4 @@
-use crate::graph::{graph_core::GraphCore, N};
+use crate::graph::graph_core::GraphCore;
 
 
 
@@ -66,7 +66,7 @@ impl ParentTree {
         tree
     }
 
-    pub fn precalcul_sizes(&mut self, u: usize, tab: &mut Vec<u64>) {
+    pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut Vec<u64>) {
         static mut QUEUE: [usize; 50000000] = [0; 50000000];
         let mut i = 0;
         let mut j = self.leaves.len();

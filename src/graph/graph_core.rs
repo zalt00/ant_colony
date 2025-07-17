@@ -1,4 +1,8 @@
-use crate::graph::N;
+use std::collections::VecDeque;
+
+use rand::{seq::SliceRandom, RngCore};
+
+use crate::{graph::N, my_rand::Prng};
 static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
 
 pub trait GraphCore: Clone {
@@ -248,6 +252,65 @@ pub trait GraphCore: Clone {
 
 
     }
+
+    fn multisource_bfs_partition(&self, k: usize, prng: &mut Prng) -> Vec<u64> {
+        // k: nombre de sources
+        let n = self.vertex_count();
+        let mut queues = vec![VecDeque::new(); k];
+        let mut partition = vec![u64::MAX; n];
+        println!("k={}", k);
+        //let mut i = 0;
+
+        // let edges = self.get_edges();
+
+        for part_id in (0..k).rev() {
+            loop {
+                // let source_edge = edges[(prng.next_u64() % edges.len() as u64) as usize];
+                // let source = source_edge[(prng.next_u64() % 2) as usize];
+                let source = (prng.next_u64() % n as u64) as usize;
+                if partition[source] == u64::MAX {
+                    //println!("source = {}", source);
+                    queues[part_id].push_back(source);
+                    break
+                }
+            }
+        }
+
+        let mut parts: Vec<usize> = (0..k).collect();
+
+        let mut keep_going = true;
+        while keep_going {
+            keep_going = false;
+            parts.shuffle(prng);
+            for &part_id in parts.iter() {
+                while !queues[part_id].is_empty() {
+                    let u = queues[part_id].pop_front().unwrap();
+
+                    if partition[u] == u64::MAX {
+                        partition[u] = part_id as u64;
+                        //println!("i: {}/{}", i, n);
+
+                        for &v in self.get_neighbors(u) {
+                            if partition[v] == u64::MAX {
+                                queues[part_id].push_back(v);
+                            }
+                        }
+
+                        keep_going = true;
+                        break
+                    }
+                }
+            }
+        }
+
+        for &v in &partition {
+            assert!(v != u64::MAX);
+        }
+
+        partition
+
+    }
+
 
 }
 

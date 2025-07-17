@@ -63,7 +63,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
     }
 
 
-    pub fn init_strategy(&mut self, x: &mut RootedTree, i: usize) {
+    pub fn init_strategy(&mut self, _x: &mut RootedTree, i: usize) {
         use NeighborhoodStrategies::*;
         match self.neighborhood_strategies[i] {
             EdgeSwap => {

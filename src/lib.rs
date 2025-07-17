@@ -26,7 +26,7 @@ use crate::utils::TarjanSolver;
 #[pyclass]
 struct Helper {
     g: MatGraph,
-    base_tree: RootedTree,
+    _base_tree: RootedTree,
     tree: RootedTree,
     dataset: Vec<(usize, usize, usize)>,
     edges: Vec<[usize;2]>,
@@ -38,7 +38,7 @@ impl Helper {
     #[new]
     fn new() -> Helper {
         let mut h = Helper { g: MatGraph::new_really_empty(),
-            base_tree: RootedTree::new_really_empty(),
+            _base_tree: RootedTree::new_really_empty(),
             tree: RootedTree::new_really_empty(),
             dataset: vec![], edges: vec![], prng: Prng::seed_from_u64(12) };
         h.init();
