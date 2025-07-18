@@ -1,12 +1,9 @@
 {
   "profiles": {
-    "benchmark2": "Benchmark",
-    "clustering_dblp": {
-      "ClusteringTest": 0
-    },
-    "clustering_facebook": {
-      "ClusteringTest": 2
-    },
+    "new_dist_approx": "NewDistoApprox",
+    "disto_approx": "DistoApprox",
+    "clique-cycle": "CliqueCycle",
+    "reg_graph": "RegularGraph",
     "vns-vs-aco": {
       "VNSvsACO": {
         "c": 8000.0,
@@ -17,8 +14,16 @@
         "ic": 600
       }
     },
+    "clustering_dblp": {
+      "ClusteringTest": 0
+    },
+    "clustering_enron": {
+      "ClusteringTest": 1
+    },
+    "clustering_facebook": {
+      "ClusteringTest": 2
+    },
     "ntest1": "NeighborhoodTest",
-    "clique-cycle": "CliqueCycle",
     "ac-c8000-evap0.4-w0.5-seed143": {
       "AntColony": {
         "c": 8000.0,
@@ -29,12 +34,6 @@
         "ic": 600
       }
     },
-    "reg_graph": "RegularGraph",
-    "clustering_enron": {
-      "ClusteringTest": 1
-    },
-    "benchmark": "VNSFullTest",
-    "new_dist_approx": "NewDistoApprox",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
         "c": 8000.0,
@@ -45,6 +44,7 @@
         "ic": 600
       }
     },
-    "disto_approx": "DistoApprox"
+    "benchmark": "VNSFullTest",
+    "benchmark2": "Benchmark"
   }
 }

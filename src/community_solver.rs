@@ -3,8 +3,9 @@ use std::{collections::HashMap, time::Instant};
 
 use pyo3::ffi::c_str;
 use pyo3::types::PyDict;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
+use crate::greedy::greedy_bfs;
 use crate::vns::VNS;
 use crate::utils::{HashMapExt, PairExt, TarjanSolver};
 use crate::my_rand::Prng;
@@ -84,6 +85,17 @@ impl Solver for BestRandomVND {
 
         tree
 
+    }
+}
+
+
+pub struct BFSTree;
+
+impl Solver for BFSTree {
+    type T = CompressedGraph;
+
+    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+        greedy_bfs(&g).1
     }
 }
 
@@ -314,7 +326,7 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
     pub fn launch<Sbig: Solver<T=T>, Ssmall: Solver<T=T>>(&mut self, trace_save_path: Option<&str>) -> RootedTree {
         let mut ans_tree = self.g.clone_empty();
         let threshold = self.g.vertex_count() / self.unique_block_count / 5;
-
+        let mut prng = Prng::seed_from_u64(1111);
         let mut community_trees = Vec::new();
         
         for (i, sg) in self.sub_graphs.drain(..).enumerate() {
@@ -345,7 +357,9 @@ impl<'a, T: GraphCore+GraphRng+Default> CommunitySolver<T> {
         println!("tree reconstruction");
         for e in block_tree.edges() {
             let possible_edge_lst = &self.block_graph_edges_hmap[&e.sorted()];
-            let [u, v] = possible_edge_lst[0];
+            let l = possible_edge_lst.len();
+            let i = (prng.next_u64() % l as u64) as usize;
+            let [u, v] = possible_edge_lst[i];
             ans_tree.add_edge_unckecked(u, v);
         }
         

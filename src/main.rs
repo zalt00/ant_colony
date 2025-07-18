@@ -7,7 +7,7 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 #[cfg(feature="louvain")]
 use crate::community_solver::LouvainPartitioner;
-use crate::community_solver::{BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom};
+use crate::community_solver::{BFSTree, BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom};
 use crate::distorsion_heuristics::Num;
 use crate::graph::parent_tree::ParentTree;
 use pyo3::ffi::c_str;
@@ -22,7 +22,7 @@ use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
 use crate::vns::VNS;
 use crate::my_rand::{my_rand, random_permutation, Prng};
-use crate::greedy::greedy_ebc_delete_no_recompute;
+use crate::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute};
 use crate::graph::graph_generator::{Data, GraphData, GraphRng};
 use crate::graph::print_counters;
 use crate::graph::RootedTree;
@@ -267,7 +267,8 @@ fn main() {
                     println!("n={}, m={}", gdt.n, gdt.m);
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     
-                    
+                    let (t, d) = greedy_bfs(&g);
+                    println!("greedy bfs result: {}", t);
                     
                     
                     
@@ -297,13 +298,24 @@ fn main() {
 
 
 
-                    // let mut tree = solver.launch::<TestRandom, BestRandom>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
-                    // println!("heuristic: {}", tree.new_disto_approx4());
+                    let mut tree = solver.launch::<BFSTree, BFSTree>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
+                    println!("heuristic: {}", tree.new_disto_approx4());
 
                     println!("total execution time: {:?}", now.elapsed());
 
                 },
                 Profile::RegularGraph => {
+
+                    let data = Data::load("data/graph-benchmark-samples.data");
+
+                    for gdt in data.samples.iter() {
+                        let (g, _,  dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                        println!("{}", gdt.label);
+                        let (d, t) = greedy_bfs(&g);
+                        println!("{}", t.distorsion(&g, &dm))
+                    }
+
+
                 },
 
 
