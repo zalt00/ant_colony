@@ -294,6 +294,8 @@ impl RootedTree {
     }
 
     pub fn add_child(&mut self, u: usize, v: usize) {
+        // u: parent
+        // v: enfant
         self.parent[v] = u;
         self.arity[u] += 1;
         self.depths[v] = self.depths[u] + 1;

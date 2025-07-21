@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+pub mod community_solver;
 pub mod graph;
 pub mod my_rand;
 pub mod greedy;

@@ -1,8 +1,10 @@
 use core::f64;
+use std::fs::File;
 use std::time::Instant;
 
 use rand::{RngCore, SeedableRng};
 
+use crate::greedy::greedy_bfs;
 use crate::utils::TarjanSolver;
 use crate::trace::TraceData;
 use crate::neighborhood::NeighborhoodStrategies;
@@ -84,7 +86,8 @@ impl<T: GraphCore+GraphRng> SA<T> {
                 x.subtree_swap_with_random_critical_path(&mut self.prng, &self.g, &mut self.tree_buf);
                 let root = (self.prng.next_u64() % self.n as u64) as usize;
                 RootedTree::from_graph(&self.tree_buf, root)
-            }
+            },
+            _ => panic!()
         }
     }
 
@@ -159,14 +162,19 @@ impl<T: GraphCore+GraphRng> SA<T> {
     pub fn beuh(&mut self, time_limit: f64) -> (f64, Vec<TraceData>) {
         let mut best_disto_approx = constants::INF;
         let mut best_approx_tree = RootedTree::new(self.n, 0);
-        let mut cur_disto_approx = constants::INF;
 
         let now = Instant::now();
-
         let mut cur_approx_tree = self.g.random_subtree(&mut self.prng);
+        cur_approx_tree = greedy_bfs(&self.g).1;
+        println!("{}", cur_approx_tree.distorsion(&self.g, &self.dist_matrix));
+        let mut cur_disto_approx = cur_approx_tree.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+
+        best_approx_tree = cur_approx_tree.clone();
+        best_disto_approx = cur_disto_approx;
 
         let mut elapsed;
         let mut trace: Vec<TraceData> = Vec::new();
+        let mut trace2 = (Vec::new(), Vec::new(), Vec::new());
 
         let mut iter_id = 0;
 
@@ -181,6 +189,11 @@ impl<T: GraphCore+GraphRng> SA<T> {
                 if ydist < best_disto_approx {
                     best_approx_tree = y.clone();
                     best_disto_approx = ydist;
+                    trace2.0.push(y.new_disto_approx4());
+                    trace2.1.push(y.stretch(&self.g, &mut self.tarjan_solver));
+                    let d = y.distorsion(&self.g, &self.dist_matrix);
+                    println!("{}", d);
+                    trace2.2.push(d);
                 }
 
                 if ydist < cur_disto_approx {
@@ -204,6 +217,9 @@ impl<T: GraphCore+GraphRng> SA<T> {
         }
         let d = best_approx_tree.distorsion::<T>(&self.g, &self.dist_matrix);
         trace.push(TraceData::new(d, iter_id, elapsed.as_secs_f64()));
+        
+        serde_json::to_writer_pretty(&mut File::create("data.json").unwrap(), &trace2).unwrap();
+        
         (d, trace)
     }
 

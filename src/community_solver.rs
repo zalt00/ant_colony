@@ -5,7 +5,7 @@ use pyo3::ffi::c_str;
 use pyo3::types::PyDict;
 use rand::{RngCore, SeedableRng};
 
-use crate::greedy::greedy_bfs;
+use crate::greedy::{greedy_bfs, multiple_greedy_bfs};
 use crate::vns::VNS;
 use crate::utils::{HashMapExt, PairExt, TarjanSolver};
 use crate::my_rand::Prng;
@@ -24,6 +24,41 @@ impl<T: GraphCore+GraphRng> Solver for VNS<T> {
         assert!(g.is_connected());
         let mut vns: VNS<T> = VNS::new(g, seed, ebc, dm, 2);
         vns.gvns_random_start_timeout_no_distorsion(time_limit).0
+    }
+}
+
+pub struct VNSWithStart<T: GraphCore+GraphRng, S: Solver> {
+    _vns: VNS<T>,
+    _solver: S
+}
+
+impl<T: GraphCore+GraphRng, S: Solver<T=T>> Solver for VNSWithStart<T, S> {
+    type T = T;
+
+    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+        let mut vns: VNS<T> = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), 2);
+        vns.recompute_distorsion = false;
+        let base_tree = S::auto_parameters_solve(g.clone(), ebc.clone(), dm.clone(), seed + 15, time_limit);
+
+        vns.gvns2(base_tree, 10000, time_limit)
+    }
+}
+
+pub struct VNSWithStartMode1<T: GraphCore+GraphRng, S: Solver> {
+    _vns: VNS<T>,
+    _solver: S
+}
+
+impl<T: GraphCore+GraphRng, S: Solver<T=T>> Solver for VNSWithStartMode1<T, S> {
+    type T = T;
+
+    fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
+        let mut vns: VNS<T> = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), 1);
+        vns.recompute_distorsion = false;
+        vns.verbose = false;
+        let base_tree = S::auto_parameters_solve(g.clone(), ebc.clone(), dm.clone(), seed + 15, time_limit);
+
+        vns.gvns2(base_tree, 10000, time_limit)
     }
 }
 
@@ -89,13 +124,15 @@ impl Solver for BestRandomVND {
 }
 
 
-pub struct BFSTree;
+pub struct BFSTree<T: GraphCore+GraphRng> {
+    __: T
+}
 
-impl Solver for BFSTree {
-    type T = CompressedGraph;
+impl<T: GraphCore+GraphRng> Solver for BFSTree<T> {
+    type T = T;
 
     fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
-        greedy_bfs(&g).1
+        multiple_greedy_bfs(&g, 10).1
     }
 }
 
@@ -212,6 +249,7 @@ pub struct CommunitySolver<T: GraphCore+GraphRng+Default> {
 }
 
 pub fn renumber_edges(edges: &mut Vec<[usize; 2]>) -> HashMap<usize, usize> {
+    // old vertex id -> new vertex id
     let mut hmap = HashMap::with_capacity(edges.len() * 2);
     let mut i = 0;
     for [u, v] in edges {

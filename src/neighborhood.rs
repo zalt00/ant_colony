@@ -1,4 +1,7 @@
 
+use crate::community_solver::renumber_edges;
+#[cfg(feature="mean_path_heuristic")]
+use crate::graph::graph_generator::GraphRng;
 use std::collections::HashMap;
 
 use rand::{seq::SliceRandom, RngCore};
@@ -9,7 +12,10 @@ use crate::{graph::{graph_core::GraphCore, RootedTree}, my_rand::{sample_slow, P
 pub enum NeighborhoodStrategies {
     EdgeSwap,
     EdgeSubtreeRelocation,
-    CriticalPathSubtreeRelocation
+    CriticalPathSubtreeRelocation,
+    CriticalPathSubtreeVNS,
+    SpiderSubtreeVNS(usize),
+    SpiderSubtreeSwap(usize)
 }
 
 
@@ -360,17 +366,102 @@ impl RootedTree {
         for [u, v] in self.edges() {
             if !covered_vertices[u] || !covered_vertices[v] {
                 tree_buf.add_edge_unckecked(u, v);
+            } 
+        }
+    }
+
+    pub fn random_spider(&mut self, n2: usize, prng: &mut Prng) -> Vec<usize> {
+        let mut ans = vec![];
+        self.shuffle_tree_and_random_leaf(prng);
+        let mut visited = vec![false; self.n];
+        visited[self.root] = true;
+        ans.push(self.root);
+        let mut i = 0;
+        while ans.len() < n2 {
+            let u = self.leaves[i];
+            let mut v = u;
+            while !visited[v] {
+                ans.push(v);
+                visited[v] = true;
+                v = self.parent[v];
             }
+            i += 1;
             
         }
-
-
-
-        
+        //println!("ans length {}, n={}, n2={}", ans.len(), self.n, n2);
+        ans
 
     }
 
 
+
+    #[cfg(not(feature="mean_path_heuristic"))]
+    pub fn subtree_vns_with_vertices<T: GraphCore>(&self, prng: &mut Prng, vertices: &Vec<usize>,
+        g: &T, tree_buf: &mut T)
+    {panic!()} 
+
+    #[cfg(feature="mean_path_heuristic")]
+    pub fn subtree_vns_with_vertices<T: GraphCore+GraphRng>(&self, prng: &mut Prng, vertices: &Vec<usize>,
+        g: &T, tree_buf: &mut T)
+    {
+        //println!("{:?}", vertices);
+        tree_buf.reset();
+
+        use crate::{community_solver::{BFSTree, Solver, VNSWithStart, VNSWithStartMode1}, utils::{HashMapExt, IterExt}, vns::VNS};
+
+        let mut covered_vertices = vec![false; self.n];
+        //let vertices = self.get_critical_path(prng, tree_buf);
+        for &v in vertices {
+            covered_vertices[v] = true;
+        }
+
+        //println!("{:?}", vertices);
+
+        let mut possible_edges = vec![];
+
+        for &v in vertices.iter() {
+            for &w in g.get_neighbors(v) {
+                if v < w && covered_vertices[w] {
+                    possible_edges.push([v, w])
+                }
+            }
+        }
+        //println!("halo ? {}", vertices.len());
+        let old2new = renumber_edges(&mut possible_edges);
+        let g2 = T::from_edges(vertices.len(), &possible_edges);
+        //println!("{:?}", possible_edges);
+        let seed = prng.next_u64();
+        let t_better = //VNSWithStartMode1::<T, BFSTree<T>>
+        BFSTree::<T>::auto_parameters_solve(g2, vec![], vec![], seed, 0.5);
+        //println!("euh ? {}", vertices.len());
+
+        let new2old = old2new.inverse();
+        for [unew, vnew] in t_better.edges() {
+            tree_buf.add_edge_unckecked(new2old[&unew], new2old[&vnew]);
+        }
+
+
+        for [u, v] in self.edges() {
+            if !covered_vertices[u] || !covered_vertices[v] {
+                tree_buf.add_edge_unckecked(u, v);
+            } 
+        }
+    }
+
+    pub fn subtree_vns_with_random_critical_path<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, g: &T, tree_buf: &mut T) {
+        let cp = self.get_critical_path(prng, tree_buf);
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+    }
+
+    pub fn subtree_vns_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+        let cp = self.random_spider(n2, prng);
+        //println!("cp lenn {} {}", cp.len(), self.leaves.len());
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+    }
+    pub fn subtree_swap_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+        let cp = self.random_spider(n2, prng);
+        self.subtree_swap_with_vertices(prng, &cp, g, tree_buf)
+    }
 }
 
 

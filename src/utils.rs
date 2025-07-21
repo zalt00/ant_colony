@@ -300,6 +300,39 @@ impl<A, B> HashMapExt for HashMap<A, B> where B: Hash+Eq {
     }
 }
 
+pub struct Iter2Elements<'a, I: Iterator> {
+    i: &'a mut I,
+    prev: Option<I::Item>
+}
+
+impl<'a, I: Iterator> Iterator for Iter2Elements<'a, I> where I::Item: Copy+Clone{
+    type Item = (I::Item, I::Item);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let elem = self.i.next()?;
+        if let Some(prev) = self.prev {
+            self.prev = Some(elem);
+            Some((prev, elem))
+        } else {
+            self.prev = Some(elem);
+            self.next()
+        }
+    }
+}
+
+pub trait IterExt {
+    type Iter: Iterator;
+    fn iter2(&mut self) -> Iter2Elements<Self::Iter>;
+}
+
+impl<I: Iterator> IterExt for I {
+    type Iter = I;
+
+    fn iter2(&mut self) -> Iter2Elements<Self::Iter> {
+        Iter2Elements { i: self, prev: None }
+    }
+}
+
 
 
 

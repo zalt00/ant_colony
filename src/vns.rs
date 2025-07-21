@@ -30,7 +30,8 @@ pub struct VNS<T: GraphCore+GraphRng> {
 
     dist_matrix: Vec<u32>,
 
-    recompute_distorsion: bool
+    pub recompute_distorsion: bool,
+    pub verbose: bool
 }   
 
 impl<T: GraphCore+GraphRng> VNS<T> {
@@ -40,12 +41,12 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 3]; 3] = [
             [EdgeSubtreeRelocation, CriticalPathSubtreeRelocation, EdgeSubtreeRelocation],
             [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap],
-            [EdgeSubtreeRelocation, CriticalPathSubtreeRelocation, EdgeSwap]   
+            [SpiderSubtreeSwap(200), SpiderSubtreeVNS(2000), SpiderSubtreeVNS(100)]   
         ];
         static NEIGHBORHOOD_SAMPLE_SIZES: [[usize; 3]; 3] = [
             [40, 25, 25],
             [25, 25, 40],
-            [40, 25, 25]
+            [3, 30, 200]
         ];
 
         let prng = Prng::seed_from_u64(seed_u64);
@@ -57,7 +58,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
             tarjan_solver, edges, prng, edge_betweeness_centrality,
             k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
             neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix,
-        recompute_distorsion: false }
+        recompute_distorsion: false, verbose: true }
 
 
     }
@@ -82,11 +83,19 @@ impl<T: GraphCore+GraphRng> VNS<T> {
             EdgeSwap => {
                 let mut y = x.clone();
                 //self.tarjan_solver.launch(&y, &self.g);
-                while !y.edge_swap_random(&mut self.prng, &self.edges) {};
+                
+                for _ in 0..10 {
+                    if y.edge_swap_random(&mut self.prng, &self.edges) {
+                        break
+                    }
+                }
                 y
             },
             EdgeSubtreeRelocation => {
-                while !x.subtree_swap_with_random_edge(&mut self.prng, &self.edges, &self.g, &mut self.tree_buf) {};
+                for _ in 0..10 {
+                    if x.subtree_swap_with_random_edge(&mut self.prng, &self.edges, &self.g, &mut self.tree_buf)
+                        {break};
+                };
                 let root = (self.prng.next_u64() % self.n as u64) as usize;
                 RootedTree::from_graph(&self.tree_buf, root)
             },
@@ -94,7 +103,22 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                 x.subtree_swap_with_random_critical_path(&mut self.prng, &self.g, &mut self.tree_buf);
                 let root = (self.prng.next_u64() % self.n as u64) as usize;
                 RootedTree::from_graph(&self.tree_buf, root)
-            }
+            },
+            CriticalPathSubtreeVNS => {
+                x.subtree_vns_with_random_spider(&mut self.prng, self.n.isqrt(), &self.g, &mut self.tree_buf);
+                let root = (self.prng.next_u64() % self.n as u64) as usize;
+                RootedTree::from_graph(&self.tree_buf, root)
+            },
+            SpiderSubtreeSwap(n2) => {
+                x.subtree_swap_with_random_spider(&mut self.prng, n2, &self.g, &mut self.tree_buf);
+                let root = (self.prng.next_u64() % self.n as u64) as usize;
+                RootedTree::from_graph(&self.tree_buf, root)
+            },
+            SpiderSubtreeVNS(n2) => {
+                x.subtree_vns_with_random_spider(&mut self.prng, n2, &self.g, &mut self.tree_buf);
+                let root = (self.prng.next_u64() % self.n as u64) as usize;
+                RootedTree::from_graph(&self.tree_buf, root)
+            },
         }
     }
 
@@ -118,13 +142,15 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                 if disty < xdist && disty < iter_best_disto {
                     iter_best_disto = disty;
                     iter_best_tree = y;
+                    //if self.verbose {println!("euh {}", iter_best_disto);}
                     keep_going = true;  // au moins 1 improvement => on continue
                     //println!("{}", iter_best_disto);
                 }
             }
             
             if !keep_going {break}
-
+            if self.verbose {println!("{}, {}", iter_best_disto, i);}
+            assert!(xdist > iter_best_disto);
             x = iter_best_tree;
             xdist = iter_best_disto;
         }
@@ -149,6 +175,13 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         (x, xdist)
     }
 
+    pub fn gvns2(&mut self, mut x: RootedTree, niter: usize, time_limit: f64) -> RootedTree {
+        let h = x.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
+        
+        if self.verbose {println!("base dist: {}", h);}
+        self.gvns(x, h, niter, time_limit).0
+    }
+
     pub fn gvns(&mut self, mut x: RootedTree, mut xdist: Num, niter: usize, time_limit: f64) -> (RootedTree, Num, f64, Vec<TraceData>) {
 
         let mut x_real_dist = f64::INFINITY;
@@ -165,6 +198,19 @@ impl<T: GraphCore+GraphRng> VNS<T> {
         let recompute_dist = self.recompute_distorsion;
 
 
+        let (x2, xdist2) = self.vnd(x.clone(), xdist);
+
+
+        // update
+        if //x2_real_dist < x_real_dist &&
+            xdist2 < xdist {
+            (x, xdist) = (x2, xdist2);
+            //x_real_dist = x2_real_dist;
+        } 
+
+        if self.verbose {println!("after 1 vnd: {}", xdist);}
+
+
         for _iter_id in 0..niter {
             //println!("iter number {}", _iter_id + 1);
 
@@ -173,13 +219,20 @@ impl<T: GraphCore+GraphRng> VNS<T> {
                 trace.push(TraceData::new(x_real_dist, _iter_id, elapsed.as_secs_f64()));
 
                 if elapsed.as_secs_f64() >= time_limit {
-                    println!("elapsed: {:?}", elapsed);
-                    println!("iter number {}", _iter_id + 1);
+                    if self.verbose {
+                        println!("elapsed: {:?}", elapsed);
+                        println!("iter number {}", _iter_id + 1);
+                    }
 
                     break
                 }
 
             }
+
+
+            
+
+
 
 
             self.k = 0;
@@ -189,6 +242,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
                 // shake
                 self.init_strategy(&mut x, self.k);
+                if self.verbose {println!("shake strat {}", self.k)};
                 let mut y = self.get_neighbor(&mut x, self.k);
                 let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
@@ -221,7 +275,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
 
             }
-            if cfg!(feature="verbose") {println!("dist approx: {}, disto {}", xdist, x_real_dist)};
+            if cfg!(feature="verbose") && self.verbose {println!("dist approx: {}, disto {}", xdist, x_real_dist)};
 
         }
 

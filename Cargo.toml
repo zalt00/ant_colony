@@ -23,7 +23,7 @@ overflow-checks = false
 [features]
 
 extension-module = ["pyo3/extension-module"]
-default = []
+default = ["mean_path_heuristic"]
 
 use_heuristic = []
 need_ebc = []

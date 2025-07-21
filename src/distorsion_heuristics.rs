@@ -60,6 +60,12 @@ impl RootedTree {
     pub fn heuristic<T: GraphCore>(&mut self, g: &T, _edges: &Vec<[usize; 2]>,
             tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, _dm: &Vec<u32>) -> Num {
                 
+        self.stretch(g, tarjan_solver)
+    }
+
+    pub fn stretch<T: GraphCore>(&mut self, g: &T,
+        tarjan_solver: &mut TarjanSolver) -> f64 {
+            
         let (cidx, children) = self.get_children_compressed_vecvec();
 
         let (lca_idx, lca) = tarjan_solver.launch(self, g, &cidx, &children);
@@ -82,7 +88,7 @@ impl RootedTree {
     pub fn heuristic<T: GraphCore>(&mut self, g: &T, _edges: &Vec<[usize; 2]>,
             _tarjan_solver: &mut TarjanSolver, _ebc: &Vec<f64>, dm: &Vec<u32>) -> Num {
 
-        self.distorsion::<T>(g, dm)
+        self.distorsion::<T>(g, dm)  
     }
 
     #[cfg(feature = "mean_path_heuristic")]

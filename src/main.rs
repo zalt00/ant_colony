@@ -7,7 +7,7 @@ use std::{collections::HashMap, fs::File, io::Write};
 
 #[cfg(feature="louvain")]
 use crate::community_solver::LouvainPartitioner;
-use crate::community_solver::{BFSTree, BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom};
+use crate::community_solver::{BFSTree, BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom, VNSWithStart};
 use crate::distorsion_heuristics::Num;
 use crate::graph::parent_tree::ParentTree;
 use pyo3::ffi::c_str;
@@ -22,7 +22,7 @@ use crate::trace::{TraceData, TraceResult};
 use crate::utils::{test_segment_tree, TarjanSolver};
 use crate::vns::VNS;
 use crate::my_rand::{my_rand, random_permutation, Prng};
-use crate::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute};
+use crate::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute, multiple_greedy_bfs, starting_node_test_greedy_bfs};
 use crate::graph::graph_generator::{Data, GraphData, GraphRng};
 use crate::graph::print_counters;
 use crate::graph::RootedTree;
@@ -298,7 +298,7 @@ fn main() {
 
 
 
-                    let mut tree = solver.launch::<BFSTree, BFSTree>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
+                    let mut tree = solver.launch::<BFSTree<CompressedGraph>, BFSTree<CompressedGraph>>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
                     println!("heuristic: {}", tree.new_disto_approx4());
 
                     println!("total execution time: {:?}", now.elapsed());
@@ -306,14 +306,52 @@ fn main() {
                 },
                 Profile::RegularGraph => {
 
-                    let data = Data::load("data/graph-benchmark-samples.data");
+                    let mut prng = Prng::seed_from_u64(12);
+                    let g = CompressedGraph::random_graph(10000,200000, &mut prng);
+                    // let now = Instant::now();
+                    // let t = greedy_bfs(&g);
+                    // println!("{:?}, {}", now.elapsed(), t.0);
+                    // let mut t = g.random_subtree(&mut prng);
+                    // // let mut tree_buf = g.clone_empty();
+                    // // let cpath = t.random_spider(7, &mut prng);
+                    // // println!("{:?}", &cpath);  
 
-                    for gdt in data.samples.iter() {
-                        let (g, _,  dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
-                        println!("{}", gdt.label);
-                        let (d, t) = greedy_bfs(&g);
-                        println!("{}", t.distorsion(&g, &dm))
-                    }
+                    // // t.to_graph(&g).to_dot("tree.dot");
+
+                    // // t.subtree_vns_with_vertices(&mut prng, &cpath, &g, &mut tree_buf);
+
+                    // // tree_buf.to_dot("tree2.dot");
+                    // // std::process::Command::new("./gen_tree_png.bs").spawn().expect("bah");
+
+                    // // starting_node_test_greedy_bfs(&g);
+                    // let d = greedy_bfs(&g);
+                    // println!("{}", d.0);
+
+                    // let d = multiple_greedy_bfs(&g, 5);
+                    // println!("{}", d.0);
+                    let t1 = VNSWithStart::<CompressedGraph, BFSTree<CompressedGraph>>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
+                    // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
+                    let dm = g.get_dist_matrix();
+
+                    println!("vns with start: {}", t1.distorsion(&g, &dm));
+
+
+
+
+
+                    //println!("vns: {}", t2.distorsion(&g, &dm))
+                    // let mut sa = SA::new(g.clone(), 111, vec![], g.get_dist_matrix());
+                    // sa.beuh(10.0);
+
+
+                    // let data = Data::load("data/graph-benchmark-samples.data");
+
+                    // for gdt in data.samples.iter() {
+                    //     let (g, _,  dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    //     println!("{}", gdt.label);
+                    //     let (d, t) = greedy_bfs(&g);
+                    //     println!("{}", t.distorsion(&g, &dm))
+                    // }
 
 
                 },
