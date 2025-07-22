@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::ffi::CStr;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 use bincode::{Decode, Encode};
 use rand::{seq::SliceRandom, RngCore, SeedableRng};
@@ -9,6 +9,7 @@ use rand::{seq::SliceRandom, RngCore, SeedableRng};
 use crate::graph::compressed_graph::CompressedGraph;
 use crate::graph::graph_core::GraphCore;
 use crate::my_rand::Prng;
+use crate::utils::PairExt;
 use crate::{graph::{MatGraph, RootedTree}, utils::Uf};
 
 
@@ -284,13 +285,13 @@ impl Data {
         
         bincode::encode_into_std_write(
             self, 
-            &mut File::create(path).expect("welp"),
+            &mut BufWriter::new( File::create(path).expect("welp")),
             bincode::config::standard()
         ).expect("welp2");
     }
 
     pub fn load(path: &str) -> Data {
-        bincode::decode_from_std_read(&mut File::open(path).expect("beuh"), bincode::config::standard()).expect("wee")
+        bincode::decode_from_std_read(&mut BufReader::new(File::open(path).expect("beuh")), bincode::config::standard()).expect("wee")
     }
 
     pub fn load_benchmark_directory(path: &str) -> Data {
@@ -345,25 +346,38 @@ impl GraphData {
         let reader = BufReader::new(file);
         for line_res in reader.lines() {
             if let Ok(line) = line_res {
+                if line.contains("#") {continue};
                 let values: Vec<usize> = line.split(char::is_whitespace).map(|xs| {xs.parse::<usize>().unwrap()}).collect();
-                if values[0] < values[1] || true {
-                    edges.push([values[0], values[1]])
-
-                }
+                edges.push([values[0], values[1]].sorted())
             } else {
                 panic!()
             }
         }
-
+        edges.sort();
         let mut n = 0;
-        for &[u, v] in &edges {
+        let mut prev = [usize::MAX, usize::MAX];
+        let mut i = 0;
+        while i < edges.len() {
+            let e = edges[i];
+            let [u, v] = e;
+            if e == prev {
+                edges.swap_remove(i);
+            } else {
+                i += 1;
+            }
+
             n = n.max(u).max(v);
+            prev = [u, v]
         }
+
         n += 1;
         let m = edges.len();
 
         let gdt = GraphData { label: String::new(), n, m, edges, ebc: None, dist_matrix: None };
         let g: CompressedGraph = gdt.to_graph();
+
+        // connexify
+        let g = g.connectify();
           
         let mut gdt2 = GraphData::from_graph(&g, false, false);
         gdt2.label = path.to_string();

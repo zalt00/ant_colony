@@ -1,6 +1,5 @@
 
-use crate::community_solver::renumber_edges;
-#[cfg(feature="mean_path_heuristic")]
+
 use crate::graph::graph_generator::GraphRng;
 use std::collections::HashMap;
 
@@ -9,13 +8,31 @@ use rand::{seq::SliceRandom, RngCore};
 use crate::{graph::{graph_core::GraphCore, RootedTree}, my_rand::{sample_slow, Prng}, utils::Uf};
 
 #[derive(Debug, Clone, Copy)]
+pub enum NSVal {
+    Sqrt(usize, usize),
+    N(usize, usize)
+}
+
+impl NSVal {
+    pub fn to_n2(self, n: usize) -> usize {
+        match self {
+            Self::Sqrt(mul, div) => {n.isqrt() * mul / div},
+            Self::N(mul, div) => {n * mul / div}
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy)]
 pub enum NeighborhoodStrategies {
     EdgeSwap,
     EdgeSubtreeRelocation,
     CriticalPathSubtreeRelocation,
     CriticalPathSubtreeVNS,
-    SpiderSubtreeVNS(usize),
-    SpiderSubtreeSwap(usize)
+    SpiderSubtreeVNS(NSVal),
+    SpiderSubtreeSwap(NSVal),
+    SubtreeSubtreeVNS(NSVal),
+    SubtreeSubtreeSwap(NSVal)
 }
 
 
@@ -323,6 +340,8 @@ impl RootedTree {
     fn subtree_swap_with_vertices<T: GraphCore>(&self, prng: &mut Prng, vertices: &Vec<usize>,
         g: &T, tree_buf: &mut T)
     {
+
+        //println!("subtree swap");
         //println!("{:?}", vertices);
         tree_buf.reset();
 
@@ -393,11 +412,39 @@ impl RootedTree {
 
     }
 
+    pub fn random_subtree_incomplete<T: GraphCore>(&self, prng: &mut Prng, n2: usize, tree_buf: &mut T) -> Vec<usize> {
+        self.fill_graph(tree_buf);
+
+        let mut stack = Vec::new();
+        let mut ans = Vec::new();
+        let mut visited = vec![false; self.n];
+        let u = (prng.next_u64() % self.n as u64) as usize;
+
+        stack.push(u);
+
+        while ans.len() < n2 {
+            let i = (prng.next_u64() % stack.len() as u64) as usize;
+            let v = stack.swap_remove(i);
+
+            if !visited[v] {
+                visited[v] = true;
+                ans.push(v);
+
+                for &w in tree_buf.get_neighbors(v) {
+                    if !visited[w] {
+                        stack.push(w);
+                    }
+                }
+            }
+
+        }
+        ans
+    }
 
 
     #[cfg(not(feature="mean_path_heuristic"))]
-    pub fn subtree_vns_with_vertices<T: GraphCore>(&self, prng: &mut Prng, vertices: &Vec<usize>,
-        g: &T, tree_buf: &mut T)
+    pub fn subtree_vns_with_vertices<T: GraphCore>(&self, _prng: &mut Prng, _vertices: &Vec<usize>,
+        _g: &T, _tree_buf: &mut T)
     {panic!()} 
 
     #[cfg(feature="mean_path_heuristic")]
@@ -405,9 +452,9 @@ impl RootedTree {
         g: &T, tree_buf: &mut T)
     {
         //println!("{:?}", vertices);
-        tree_buf.reset();
 
-        use crate::{community_solver::{BFSTree, Solver, VNSWithStart, VNSWithStartMode1}, utils::{HashMapExt, IterExt}, vns::VNS};
+        use crate::{solver::{community_solver::renumber_edges, BFSTree, Solver}, utils::HashMapExt};
+        tree_buf.reset();
 
         let mut covered_vertices = vec![false; self.n];
         //let vertices = self.get_critical_path(prng, tree_buf);
@@ -460,6 +507,17 @@ impl RootedTree {
     }
     pub fn subtree_swap_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
         let cp = self.random_spider(n2, prng);
+        self.subtree_swap_with_vertices(prng, &cp, g, tree_buf)
+    }
+
+
+    pub fn subtree_vns_with_random_subtree<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+        let cp = self.random_subtree_incomplete(prng, n2, tree_buf);
+        //println!("cp lenn {} {}", cp.len(), self.leaves.len());
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+    }
+    pub fn subtree_swap_with_random_subtree<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+        let cp = self.random_subtree_incomplete(prng, n2, tree_buf);
         self.subtree_swap_with_vertices(prng, &cp, g, tree_buf)
     }
 }

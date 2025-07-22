@@ -1,49 +1,43 @@
-use std::fmt::format;
 use std::time::Instant;
 use std::{collections::HashMap, fs::File, io::Write};
 
 
 
 
-#[cfg(feature="louvain")]
-use crate::community_solver::LouvainPartitioner;
-use crate::community_solver::{BFSTree, BestRandom, BestRandomVND, CommunitySolver, MultiBfsPartitioner, Partitioner, Solver, TestRandom, VNSWithStart};
-use crate::distorsion_heuristics::Num;
-use crate::graph::parent_tree::ParentTree;
+
+use crate::solver::aco2::ACO2;
+use crate::solver::annealing::SA;
+#[cfg(not(feature="louvain"))]
+use crate::solver::community_solver::MultiBfsPartitioner;
+use crate::solver::community_solver::{CommunitySolver, LouvainPartitioner, Partitioner};
+use crate::solver::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute};
+use crate::solver::vns::VNS;
+use crate::solver::{BFSTree, Solver, VNSWithStart};
 use pyo3::ffi::c_str;
 use pyo3::types::PyDict;
 use rand::{RngCore, SeedableRng};
 
-use crate::aco2::ACO2;
-use crate::annealing::SA;
 use crate::graph::compressed_graph::CompressedGraph;
 use crate::graph::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
-use crate::utils::{test_segment_tree, TarjanSolver};
-use crate::vns::VNS;
-use crate::my_rand::{my_rand, random_permutation, Prng};
-use crate::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute, multiple_greedy_bfs, starting_node_test_greedy_bfs};
+use crate::utils::test_segment_tree;
+use crate::my_rand::{random_permutation, Prng};
 use crate::graph::graph_generator::{Data, GraphData, GraphRng};
-use crate::graph::print_counters;
 use crate::graph::RootedTree;
 use crate::graph::MatGraph;
 use crate::config::Profile;
 use crate::config::Config;
 use crate::config::AntColonyProfile;
 
-pub mod community_solver;
+pub mod solver;
 pub mod graph;
 pub mod my_rand;
-pub mod greedy;
-pub mod aco2;
 pub mod utils;
 pub mod config;
 pub mod neighborhood;
-pub mod annealing;
 pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
-pub mod vns;
 
 pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
     println!("n={}, m={}", gdt.n, gdt.m);
@@ -205,11 +199,22 @@ fn main() {
         Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
 
         let dt = Data::load_benchmark_directory("./data/Graph Benchmark");
-        dt.save("./data/graph-benchmark-samples.data");
+        dt.save("./binary_data/graph-benchmark-samples.data");
 
         let dt = Data::load_benchmark_directory("./data/social_network");
-        dt.save("./data/social-network-samples.data");
+        dt.save("./binary_data/social-network-samples.data");
 
+        // let dt = Data::load_benchmark_directory("./data/soc-LiveJournal1");
+        // dt.save("./binary_data/soc-LiveJournal1.data");
+
+        // let dt = Data::load_benchmark_directory("./data/soc-pokec-relationships");
+        // dt.save("./binary_data/soc-pokec-relationships.data");
+
+        // let dt = Data::load_benchmark_directory("./data/web-Google");
+        // dt.save("./binary_data/web-Google.data");
+
+        let dt = Data::load_benchmark_directory("./data/other-large-graphs");
+        dt.save("./binary_data/other-large-graphs.data");
 
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         profiles.insert("disto_approx".to_string(), Profile::DistoApprox);
@@ -307,7 +312,12 @@ fn main() {
                 Profile::RegularGraph => {
 
                     let mut prng = Prng::seed_from_u64(12);
-                    let g = CompressedGraph::random_graph(10000,200000, &mut prng);
+                    println!("loading samples...");
+                    let data = Data::load("binary_data/soc-pokec-relationships.data");
+                    let gdt = &data.samples[0];
+                    println!("{}", gdt.label);
+                    let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    //let g = CompressedGraph::random_graph(100,800, &mut prng);
                     // let now = Instant::now();
                     // let t = greedy_bfs(&g);
                     // println!("{:?}, {}", now.elapsed(), t.0);
@@ -329,7 +339,7 @@ fn main() {
 
                     // let d = multiple_greedy_bfs(&g, 5);
                     // println!("{}", d.0);
-                    let t1 = VNSWithStart::<CompressedGraph, BFSTree<CompressedGraph>>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
+                    let t1 = VNSWithStart::<CompressedGraph, BFSTree<CompressedGraph>>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
                     // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
                     let dm = g.get_dist_matrix();
 

@@ -14,7 +14,7 @@ use self::graph_core::GraphCore;
 use self::graph_generator::GraphRng;
 
 #[cfg(feature="large_graph")]
-pub const N: usize = 2000000;
+pub const N: usize = 20_000_000;
 #[cfg(not(feature="large_graph"))]
 pub const N: usize = 50000;
 
@@ -340,6 +340,7 @@ impl RootedTree {
 
         }
         dfs(root, g, &mut visited, &mut tree);
+
         tree.update_leaves();
         tree
     }
@@ -357,6 +358,7 @@ impl RootedTree {
                 tab[u] += 1;
 
                 if u != self.root {
+
                     if self.arity[self.parent[u]] == 1 {
                         QUEUE[j] = self.parent[u];
                         j+= 1;

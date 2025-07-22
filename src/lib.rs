@@ -1,18 +1,15 @@
 use pyo3::prelude::*;
 
-pub mod community_solver;
 pub mod graph;
 pub mod my_rand;
-pub mod greedy;
-pub mod aco2;
+
+pub mod solver;
 pub mod utils;
 pub mod config;
 pub mod neighborhood;
-pub mod annealing;
 pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
-pub mod vns;
 use rand::SeedableRng;
 
 use crate::distorsion_heuristics::constants;

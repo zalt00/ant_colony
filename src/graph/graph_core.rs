@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use rand::{seq::SliceRandom, RngCore};
 
-use crate::{graph::N, my_rand::Prng};
+use crate::{graph::N, my_rand::Prng, solver::community_solver::renumber_edges, utils::IterCountExt};
 static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
 
 pub trait GraphCore: Clone {
@@ -310,6 +310,38 @@ pub trait GraphCore: Clone {
         partition
 
     }
+
+
+    fn connectify(self) -> Self {
+        let (cc, ccv) = self.bfs_connected_components();
+        if cc == 1 {
+            self
+        } else {
+            println!("graph is not connected, selecting largest connected component");
+
+            let hmap = ccv.iter().count_unique_elements();
+
+            let (&&k, &_count) = hmap.iter().max_by_key(|(_k, v) | {*v}).unwrap();
+
+            println!("previous n: {}", self.vertex_count());
+            println!("new n: {}", _count);
+
+            let mut edges = vec![];
+            for e in self.get_edges() {
+                if ccv[e[0]] == k {
+                    assert!(ccv[e[1]] == k);
+                    edges.push(e)
+                }
+            }
+
+            renumber_edges(&mut edges);
+           let g = Self::from_edges_only(&edges);
+           assert!(g.vertex_count() == _count);
+           g
+        }
+    }
+
+
 
 
 }

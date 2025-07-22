@@ -333,6 +333,25 @@ impl<I: Iterator> IterExt for I {
     }
 }
 
+pub trait IterCountExt {
+    type Iter: Iterator;
+
+    fn count_unique_elements(&mut self) -> HashMap<<Self::Iter as Iterator>::Item, usize> where <<Self as IterCountExt>::Iter as Iterator>::Item: Hash+Eq;
+}
+
+impl <I: Iterator> IterCountExt for I where <I as Iterator>::Item: Hash {
+    type Iter = I;
+
+    fn count_unique_elements(&mut self) -> HashMap<<Self::Iter as Iterator>::Item, usize> where <<Self as IterCountExt>::Iter as Iterator>::Item: Hash+Eq {
+        let mut hmap = HashMap::new();
+
+        for elem in self {
+            hmap.entry(elem).and_modify(|x| {*x += 1}).or_insert(1);
+        }
+
+        hmap
+    }
+}
 
 
 
