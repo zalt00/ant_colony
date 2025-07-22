@@ -3,4 +3,4 @@ Cargo.lock
 /data
 trace.json
 /venv
-
+/binary_data
