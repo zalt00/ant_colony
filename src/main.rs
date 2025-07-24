@@ -1,30 +1,22 @@
-use std::time::Instant;
-use std::{collections::HashMap, fs::File, io::Write};
+use std::{collections::HashMap, fs::File};
 
 
 
 
 
-use crate::solver::aco2::ACO2;
-use crate::solver::annealing::SA;
 #[cfg(not(feature="louvain"))]
 use crate::solver::community_solver::MultiBfsPartitioner;
-use crate::solver::community_solver::{CommunitySolver, LouvainPartitioner, Partitioner};
-use crate::solver::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute};
-use crate::solver::vns::VNS;
-use crate::solver::{BFSTree, MultiBFSTree, Solver, VNSWithStart};
-use pyo3::ffi::c_str;
-use pyo3::types::PyDict;
-use rand::{RngCore, SeedableRng};
+#[cfg(feature="louvain")]
+use crate::solver::community_solver::LouvainPartitioner;
+use crate::solver::greedy::{greedy_bfs, multiple_greedy_bfs};
+use crate::solver::{MultiBFSTree, Solver, VNSWithStart};
+use rand::SeedableRng;
 
 use crate::graph::compressed_graph::CompressedGraph;
-use crate::graph::graph_core::GraphCore;
 use crate::trace::{TraceData, TraceResult};
 use crate::utils::test_segment_tree;
-use crate::my_rand::{random_permutation, Prng};
-use crate::graph::graph_generator::{Data, GraphData, GraphRng};
-use crate::graph::RootedTree;
-use crate::graph::MatGraph;
+use crate::my_rand::Prng;
+use crate::graph::graph_generator::{Data, GraphData};
 use crate::config::Profile;
 use crate::config::Config;
 use crate::config::AntColonyProfile;
@@ -39,149 +31,44 @@ pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
 
-pub fn test_on_graph(gdt: &GraphData, c: f64, evap: f64, seed: u64, _w: f64) {
-    println!("n={}, m={}", gdt.n, gdt.m);
-    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
-    assert!(g.is_connected());
 
-    // let c = 100.0;
-    // let evap = 0.01;
-    let k = 10;
-    let _ic = 600;
-
-
-    let max_tau = 80.0;
-    let min_tau = 0.2;
-    let tau_init = 76.;
-
-
-    let (dist1, _) = (0.0, ());//aco.launch(ic);
-
-    // println!("{:?}", now.elapsed());
-
-    // let now = Instant::now();
-
-    let mut dist2_sum = 0.0;
-    let mut counter = 0;
-
-    let mut vecs = vec![];
-
-    for i in 0..1 {
-        println!("init aco2");
-
-        // let (disto, _) = greedy_algo(&g, &dm);
-        // println!("{}", disto);
-
-        let mut _aco2 = ACO2::new(g.clone(), k, c, evap, min_tau, max_tau, tau_init, seed + 212*i, None, ebc.clone(),
-        dm.clone());
-            println!("launch aco2");
-
-        let dist2 = 0.0;//aco2.launch(ic, w);
-        dist2_sum += dist2;
-        counter += 1;
-
-        vecs.push(_aco2.trace)
-    }
-
-
-    // println!("{:?}", now.elapsed());
-
-    let s = serde_json::to_string(&vecs).expect("welp");
-    // println!("{:?}", g.get_edge_betweeness_centrality());
-    println!("saving...");
-    let mut output = File::create("trace.json").expect("welp2");
-    output.write_fmt(core::format_args!("{}",s)).expect("weee");
-
-    println!("aco1={}, aco2={}", dist1, dist2_sum / counter as f64);
-
-}
-
-pub fn save_result(gdt: &GraphData, label: &str, d: f64, trace: Vec<TraceData>) {
+pub fn save_result(gdt: &GraphData, label: &str, trace: (f64, u64, u64)) {
     let path = format!("{}_result-{}.json", gdt.label, label);
     println!("Done. Saving results in \"{}\"\n", &path);
     let mut file = File::create(&path).expect("bah");
-    serde_json::to_writer_pretty(&mut file, &TraceResult::new(d, trace)).expect("error");
+    serde_json::to_writer_pretty(&mut file, &trace).expect("error");
 
 }
 
-pub fn test_with_multiple_algos(i: u64, gdt: &GraphData) {
-    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<MatGraph>();
-
-    let time_limit = if gdt.n > 500 {
-        10. * 60.
-    } else {
-        60.0
-    };
-
-    println!("Sample <{}>", gdt.label);
-
-    for mode in 0..0 {
-        let label = format!("vns_mode{}", mode);
-
-        println!("launching: <{}>", &label);
-        let mut vns = VNS::new(g.clone(), 1234 + 34*i + mode as u64, ebc.clone(), dm.clone(), mode);
-        let (d, t) = vns.gvns_random_start_nonapprox_timeout(time_limit);
-        save_result(gdt, &label, d, t);
-    }
-
-    let label = "aco";
-
-    println!("launching: <{}>", &label);
-
-    let max_tau = 80.0;
-    let min_tau = 0.2;
-    let tau_init = 76.;
-
-    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121 + 12*i, None, ebc.clone(), dm.clone());
-    let d = aco2.launch(1000000, 0.5, time_limit, 2.0);
-    save_result(gdt, &label, d.0, d.1);
-
-
-
-    let label = "aco_hybrid";
-
-    println!("launching: <{}>", &label);
-
-    let max_tau = 80.0;
-    let min_tau = 0.2;
-    let tau_init = 76.;
-
-    let mut aco2 = ACO2::new(g.clone(), 10, 6000.0, 0.4, min_tau, max_tau, tau_init, 121 + i, None, ebc.clone(), dm.clone());
-    aco2.vnd_hybrid = true;
-    let d = aco2.launch(1000000, 0.5, time_limit, 2.0);
-    save_result(gdt, &label, d.0, d.1);
-
-
-    let label = "beuh";
-
-    println!("launching: <{}>", &label);
-
-    let mut sa = SA::new(g.clone(), 1203 + 4*i, ebc.clone(), dm.clone());
-    let d = sa.beuh(time_limit);
-    save_result(gdt, &label, d.0, d.1);
-
-
-    let label = "greedy";
-
-    println!("launching: <{}>", &label);
-
-    let ebc2 = if cfg!(not(feature = "need_ebc")) {
-        println!("compute ebc for greedy..");
-        &g.get_edge_betweeness_centrality()
-    } else {
-        &ebc
-    };
-
-    let d = greedy_ebc_delete_no_recompute(&g, ebc2, &dm);
-    save_result(gdt, &label, d.0, vec![]);
-
-
-}
 
 #[cfg(not(feature="louvain"))]
-type MyPartitioner = MultiBfsPartitioner;
+pub type MyPartitioner = MultiBfsPartitioner;
 #[cfg(feature="louvain")]
-type MyPartitioner = LouvainPartitioner;
+pub type MyPartitioner = LouvainPartitioner;
+
+const LARGE_GRAPH_DATASET: &[&str] = &[
+    "binary_data/other-large-graphs.data",
+    "binary_data/soc-LiveJournal1.data",
+    "binary_data/soc-pokec-relationships.data",
+    "binary_data/web-Google.data"
+];
+
+const LARGE_GRAPH_RAWDATA_DIRS: &[&str] = &[
+    "data/other-large-graphs",
+    "data/soc-LiveJournal1",
+    "data/soc-pokec-relationships",
+    "data/web-Google"
+];
+
+const SMALL_GRAPH_DATASET: &[&str] = &[
+    "binary_data/graph-benchmark-samples.data"
+];
+
+const SMALL_GRAPH_RAWDATA_DIRS: &[&str] = &[
+    "data/Graph Benchmark"
+];
+
+
 
 fn main() {
     test_segment_tree();
@@ -198,23 +85,19 @@ fn main() {
         Data::generate_samples(1, 1000, 20000, 87876878).save("data/samples1000-20000-2.data");
         Data::generate_samples(1, 1000, 20000, 979).save("data/samples1000-20000-3.data");
 
-        let dt = Data::load_benchmark_directory("./data/Graph Benchmark");
-        dt.save("./binary_data/graph-benchmark-samples.data");
+        for (&rawdata_dir, &bin_path) in SMALL_GRAPH_RAWDATA_DIRS.iter().zip(SMALL_GRAPH_DATASET) {
+            let dt = Data::load_benchmark_directory(rawdata_dir);
+            dt.save(bin_path);
+        }
+
 
         let dt = Data::load_benchmark_directory("./data/social_network");
         dt.save("./binary_data/social-network-samples.data");
 
-        // let dt = Data::load_benchmark_directory("./data/soc-LiveJournal1");
-        // dt.save("./binary_data/soc-LiveJournal1.data");
-
-        // let dt = Data::load_benchmark_directory("./data/soc-pokec-relationships");
-        // dt.save("./binary_data/soc-pokec-relationships.data");
-
-        // let dt = Data::load_benchmark_directory("./data/web-Google");
-        // dt.save("./binary_data/web-Google.data");
-
-        let dt = Data::load_benchmark_directory("./data/other-large-graphs");
-        dt.save("./binary_data/other-large-graphs.data");
+        for (&rawdata_dir, &bin_path) in LARGE_GRAPH_RAWDATA_DIRS.iter().zip(LARGE_GRAPH_DATASET) {
+            let dt = Data::load_benchmark_directory(rawdata_dir);
+            dt.save(bin_path);
+        }
 
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         profiles.insert("disto_approx".to_string(), Profile::DistoApprox);
@@ -257,64 +140,14 @@ fn main() {
                 Profile::ClusteringTest(gi) => {
 
 
-                    let mut map = HashMap::new();
-
-                    map.entry("poneyland").or_insert_with(|| "ahah");
-                    map.entry("poneyland").or_insert_with(|| panic!());
-
-                    assert_eq!(map["poneyland"], "ahah");
-
-
-                    let now = Instant::now();
-                    let _data = Data::load("data/social-network-samples.data");
-                    let gdt = &_data.samples[*gi];
-                    println!("{}", gdt.label);
-                    println!("n={}, m={}", gdt.n, gdt.m);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
-                    
-                    let mut d = greedy_bfs(&g);
-                    println!("greedy bfs result: {}", d.new_disto_approx4());
-                    
-                    
-                    
-                    println!("loading blocks...");
-                    let mut partitioner = MyPartitioner {};
-                    let mut blocks = partitioner.load_partition_or_compute_it(&g, &gdt.label, false);
-                    partitioner.save_partition(&blocks, &gdt.label);
-                    
-                    let mut hmap = HashMap::new();
-                    
-                    let mut i = 0_u64;
-                    println!("renumbering block id");
-                    for b in blocks.iter() {
-                        //print!("{} ", b);
-                        hmap.entry(*b).or_insert_with(|| {let j=i; i += 1; j});
-                    }
-                    for b in blocks.iter_mut() {
-                        let v = hmap[b];
-                        *b = v;
-                    }
-                    //let i = 183;
-                    println!("{}", i);
-                    //println!("{:?}", &blocks[33000..33100]);
-
-                    let mut solver: CommunitySolver<CompressedGraph> = CommunitySolver::new(g, blocks, i as usize);
-                    solver.init_block_graph();
-
-
-
-                    let mut tree = solver.launch::<BFSTree<CompressedGraph>, BFSTree<CompressedGraph>>(Some(&format!("{}-launch-result-{}.json", gdt.label, MyPartitioner::partitioner_label())));
-                    println!("heuristic: {}", tree.new_disto_approx4());
-
-                    println!("total execution time: {:?}", now.elapsed());
 
                 },
                 Profile::RegularGraph => {
 
                     let mut prng = Prng::seed_from_u64(12);
                     println!("loading samples...");
-                    let data = Data::load("binary_data/graph-benchmark-samples.data");
-                    let gdt = &data.samples[1];
+                    let data = Data::load("binary_data/web-Google.data");
+                    let gdt = &data.samples[0];
                     println!("{}", gdt.label);
                     let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     //let g = CompressedGraph::random_graph(100,800, &mut prng);
@@ -339,8 +172,8 @@ fn main() {
 
                     // let d = multiple_greedy_bfs(&g, 5);
                     // println!("{}", d.0);
-                    let mut tbfs = MultiBFSTree::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 112, 1.0);
-                    let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree<CompressedGraph>, 2, 0>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
+                    let mut tbfs = MultiBFSTree::<50>::auto_parameters_solve(g.clone(), vec![], vec![], 112, 1.0);
+                    let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 1800.0);
                     // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
 
 
@@ -373,48 +206,54 @@ fn main() {
 
                 Profile::NewDistoApprox => {
 
-                    use pyo3::prelude::*;
-                    
-                    pyo3::prepare_freethreaded_python();
-                    let code = c_str!(include_str!("../graph_tool_test.py"));
-
-                    let mut prng = Prng::seed_from_u64(1671);
-                    let _data = Data::load("data/social-network-samples.data");
-                    let gdt = &_data.samples[1];
-                    println!("{}", gdt.label);
-                    println!("n={}, m={}", gdt.n, gdt.m);
-                    let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
-                    //let g = CompressedGraph::clique_cycle(50, 50);
-
-                    //let y = VNS::<CompressedGraph>::auto_parameters_solve(gdt, 121, 40.0);
-                    let mut blocks: Vec<u64> = vec![];
-                    Python::with_gil(|py| {
-                        let fun: Py<PyAny> = PyModule::from_code(
-                            py,
-                            code,
-                            c".\\..\\graph_tool_test.py",
-                            c"graph_tool_test",
-                        ).or_else(|err| {println!("{}", err.traceback(py).unwrap()); Err(err)})
-                        .unwrap()
-                        .getattr("find_communities").expect("rip2")
-                        .into();
-
-                        let kwargs = PyDict::new(py);
-                        kwargs.set_item("edges", g.get_edges()).expect("bah");
-                        kwargs.set_item("kmin", 300).expect("bah");
-                        kwargs.set_item("kmax", 800).expect("bah");
-
-                        let blocks_py = fun.call(py, (), Some(&kwargs)).expect("beuh");
-                        blocks = blocks_py.extract(py).expect("beuh");
-                        //println!("{:?}", blocks);
-                    });
-
-                    let mut f = File::create(format!("{}-blocks.json", gdt.label)).expect("a");
-                    write!(f, "{}", serde_json::to_string(&blocks).unwrap()).unwrap();
-
                 },
 
                 Profile::Benchmark => {
+                    for &bin_path in LARGE_GRAPH_DATASET {
+                        let dt = Data::load(bin_path);
+                        for gdt in dt.samples {
+                            println!("{}", gdt.label);
+                            let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                            let (bfsdist, _tbfs) = multiple_greedy_bfs(&g, 50);
+
+                            {
+                                let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
+                                let vns1dist = tvns1.new_disto_approx4();
+                                save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
+
+                            }{
+                                let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
+                                let vns2dist = tvns2.new_disto_approx4();
+                                save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
+
+                            }
+                        }
+                    }
+
+                    for &bin_path in SMALL_GRAPH_DATASET {
+                        let dt = Data::load(bin_path);
+                        for gdt in dt.samples {
+                            println!("{}", gdt.label);
+                            let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                            let (bfsdist, _tbfs) = multiple_greedy_bfs(&g, 50);
+
+                            {
+                                let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
+                                let vns1dist = tvns1.new_disto_approx4();
+                                save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
+
+                            }{
+                                let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 1>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
+                                let vns2dist = tvns2.new_disto_approx4();
+                                save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
+
+                            }
+                        }
+                    }
+
+
+
+
                 },
                 Profile::AntColony(_dt) => {
                 },
@@ -428,25 +267,7 @@ fn main() {
                 },
 
                 Profile::CliqueCycle => {
-                    println!("clique cycle");
-                    let mut prng = Prng::seed_from_u64(123);
-                    let k = 20;
-                    let l = 60;
 
-                    let permutation = random_permutation(k*l, &mut prng);
-                    let g = MatGraph::clique_cycle(k, l).renumber(&permutation);
-                    let tree = MatGraph::clique_cycle_mindisto_tree(k, l).renumber(&permutation);
-                    let rooted_tree = RootedTree::from_graph(&tree, (prng.next_u64() % (k*l) as u64) as usize);
-
-                    let dm = g.get_dist_matrix();
-                    let ebc = g.get_edge_betweeness_centrality();
-
-                    println!("disto: {}", rooted_tree.distorsion::<MatGraph>(&g, &dm));
-
-                    let mut vns = VNS::new(g, 1203, ebc, dm, 0);
-                    let d = vns.gvns_random_start_nonapprox_timeout(20.0);
-
-                    println!("computed disto: {}", d.0);
                 }
             }
         } else {

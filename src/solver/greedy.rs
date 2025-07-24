@@ -68,9 +68,9 @@ pub fn greedy_bfs<T: GraphCore>(g: &T) -> RootedTree {
 
 }
 
-pub fn random_greedy_bfs<T: GraphCore>(g: &T, prng: &mut Prng) -> RootedTree {
+pub fn random_greedy_bfs<T: GraphCore>(g: &T, rd_val: u64) -> RootedTree {
     let n = g.vertex_count();
-    let max_degree_node = (prng.next_u64() % n as u64) as usize;
+    let max_degree_node = (rd_val % n as u64) as usize;
     let mut queue = VecDeque::new();
     greedy_bfs_from_node(g, max_degree_node, &mut queue)
 

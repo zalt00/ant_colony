@@ -14,6 +14,10 @@ pub mod community_solver;
 pub trait Solver {
     type T: GraphCore+GraphRng;
     fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree;
+
+    fn auto_solve_no_ebcdm(g: Self::T, seed: u64, time_limit: f64) -> RootedTree {
+        Self::auto_parameters_solve(g, vec![], vec![], seed, time_limit)
+    }
 }
 
 impl<T: GraphCore+GraphRng> Solver for VNS<T> {
@@ -43,6 +47,9 @@ impl<T: GraphCore+GraphRng, S: Solver<T=T>, const MODE_LG: usize, const MODE_SG:
         } else {
             MODE_LG
         };
+        if cfg!(feature="verbose") {
+            println!("mode: {}", mode);
+        }
         let mut vns: VNS<T> = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), mode);
         vns.recompute_distorsion = false;
         let base_tree = S::auto_parameters_solve(g.clone(), ebc.clone(), dm.clone(), seed + 15, time_limit);
@@ -131,15 +138,15 @@ impl Solver for BestRandomVND {
 }
 
 
-pub struct MultiBFSTree<T: GraphCore+GraphRng> {
+pub struct MultiBFSTree<const K: usize = 50, T: GraphCore+GraphRng = CompressedGraph> {
     __: T
 }
 
-impl<T: GraphCore+GraphRng> Solver for MultiBFSTree<T> {
+impl<const K: usize, T: GraphCore+GraphRng> Solver for MultiBFSTree<K, T> {
     type T = T;
 
     fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, _seed: u64, _time_limit: f64) -> RootedTree {
-        multiple_greedy_bfs(&g, 10).1
+        multiple_greedy_bfs(&g, K).1
     }
 }
 
@@ -163,7 +170,7 @@ impl<T: GraphCore+GraphRng> Solver for RandomStartBFSTree<T> {
     type T = T;
 
     fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, _seed: u64, _time_limit: f64) -> RootedTree {
-        random_greedy_bfs(&g, &mut Prng::seed_from_u64(_seed))
+        random_greedy_bfs(&g, _seed)
     }
 }
 

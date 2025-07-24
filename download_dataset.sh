@@ -19,7 +19,7 @@ mkdir web-Google
 cd    web-Google
 wget https://snap.stanford.edu/data/web-Google.txt.gz
 gzip -d web-Google.txt.gz
-cd..
+cd ..
 
 mkdir soc-LiveJournal1
 cd    soc-LiveJournal1

@@ -17,7 +17,7 @@ pyo3 = { version = "0.25.1" }
 
 
 [profile.release]
-debug = true
+debug = false
 overflow-checks = false
 
 [features]
@@ -37,6 +37,8 @@ enable_counters = []
 large_graph = []
 
 louvain = []
+
+usual = ["mean_path_heuristic", "large_graph"]
 
 [lib]
 name = "mylib"

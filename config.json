@@ -1,20 +1,5 @@
 {
   "profiles": {
-    "benchmark": "VNSFullTest",
-    "benchmark2": "Benchmark",
-    "clique-cycle": "CliqueCycle",
-    "new_dist_approx": "NewDistoApprox",
-    "vns-vs-aco": {
-      "VNSvsACO": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 123,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    },
-    "reg_graph": "RegularGraph",
     "ac-c8000-evap0.4-w0.5-seed143": {
       "AntColony": {
         "c": 8000.0,
@@ -28,9 +13,20 @@
     "clustering_enron": {
       "ClusteringTest": 1
     },
-    "clustering_dblp": {
-      "ClusteringTest": 0
+    "reg_graph": "RegularGraph",
+    "vns-vs-aco": {
+      "VNSvsACO": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 123,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
     },
+    "benchmark": "VNSFullTest",
+    "clique-cycle": "CliqueCycle",
+    "benchmark2": "Benchmark",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
         "c": 8000.0,
@@ -42,9 +38,13 @@
       }
     },
     "disto_approx": "DistoApprox",
+    "new_dist_approx": "NewDistoApprox",
+    "clustering_dblp": {
+      "ClusteringTest": 0
+    },
+    "ntest1": "NeighborhoodTest",
     "clustering_facebook": {
       "ClusteringTest": 2
-    },
-    "ntest1": "NeighborhoodTest"
+    }
   }
 }
