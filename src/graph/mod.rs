@@ -265,14 +265,13 @@ pub struct RootedTree {
     pub n: usize,
     pub parent: Vec<usize>,
     pub arity: Vec<usize>,
-    pub leaves: Vec<usize>,
     pub depths: Vec<usize>,
     pub root: usize
 }
 
 impl RootedTree {
     pub const fn new_really_empty() -> RootedTree {
-        RootedTree { n: 0, parent: vec![], arity: vec![], leaves: vec![], depths: vec![], root: 0}
+        RootedTree { n: 0, parent: vec![], arity: vec![], depths: vec![], root: 0}
     }
 
     pub fn new(n: usize, root: usize) -> RootedTree {
@@ -281,13 +280,12 @@ impl RootedTree {
         let mut depths = vec![usize::MAX; n];
         depths[root] = 0;
 
-        RootedTree { n, parent, leaves: Vec::with_capacity(n), arity: vec![0; n], depths, root }
+        RootedTree { n, parent, arity: vec![0; n], depths, root }
     }
 
     pub fn reset(&mut self, root: usize) {
         self.parent.fill(usize::MAX);
         self.arity.fill(0);
-        self.leaves.clear();
         self.depths.fill(usize::MAX);
         self.depths[root] = 0;
         self.root = root;
@@ -306,13 +304,6 @@ impl RootedTree {
         self.arity[self.parent[u]] -= 1;
         self.arity[new_parent] += 1;
         self.parent[u] = new_parent;
-    }
-
-    pub fn update_leaves(&mut self) {
-        self.leaves.clear();
-        for u in (0..self.n).filter(|&x|{self.arity[x] == 0}) {
-            self.leaves.push(u)
-        }
     }
 
     pub fn recompute_arity(&mut self) {
@@ -341,16 +332,20 @@ impl RootedTree {
         }
         dfs(root, g, &mut visited, &mut tree);
 
-        tree.update_leaves();
         tree
     }
+
+    pub fn update_leaves(&mut self) {}
 
     pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut Vec<u64>) {
         static mut QUEUE: [usize; 50000000] = [0; 50000000];
         let mut i = 0;
-        let mut j = self.leaves.len();
-        for (t, &u) in self.leaves.iter().enumerate() {
-            unsafe{QUEUE[t] = u;}
+        let mut j = 0;
+        for u in 0..self.n {
+            if self.arity[u] == 0 {
+                unsafe{QUEUE[j] = u;}
+                j += 1;
+            }
         }
         while i < j {
             unsafe{
@@ -361,7 +356,7 @@ impl RootedTree {
 
                     if self.arity[self.parent[u]] == 1 {
                         QUEUE[j] = self.parent[u];
-                        j+= 1;
+                        j += 1;
                     } else {
                         self.arity[self.parent[u]] -= 1;
                     }
@@ -387,8 +382,10 @@ impl RootedTree {
         self.depths = vec![usize::MAX; self.n];
         self.depths[self.root] = 0;
 
-        for i in 0..self.leaves.len() {
-            self.recompute_depths_rec(self.leaves[i]);
+        for i in 0..self.n {
+            if self.arity[i] == 0 {
+                self.recompute_depths_rec(i);
+            }
         }
     }
 

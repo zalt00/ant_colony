@@ -44,7 +44,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
     pub fn new(g: T, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode: usize) -> VNS<T> {
         use NeighborhoodStrategies::*;
         static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 4]; 3] = [
-            [SubtreeSubtreeVNS(NSVal::N(1, 50)), SpiderSubtreeSwap(NSVal::N(1, 100)), SubtreeSubtreeSwap(NSVal::N(1, 5)), SpiderSubtreeVNS(NSVal::N(1, 10))],
+            [SubtreeSubtreeVNS(NSVal::N(1, 50)), SpiderSubtreeSwap(NSVal::N(1, 100)), SubtreeSubtreeSwap(NSVal::N(1, 50)), SpiderSubtreeVNS(NSVal::N(1, 100))],
             [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap, CriticalPathSubtreeRelocation],
             [SubtreeSubtreeVNS(NSVal::N(1, 5)), SpiderSubtreeVNS(NSVal::N(1, 10)), SubtreeSubtreeSwap(NSVal::N(1, 3)), SpiderSubtreeSwap(NSVal::N(1, 100))]   
         ];

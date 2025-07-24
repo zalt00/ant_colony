@@ -312,10 +312,13 @@ impl RootedTree {
     }
 
     // critical path subtree swap
-    pub fn shuffle_tree_and_random_leaf(&mut self, prng: &mut Prng) -> usize {
-        self.leaves.shuffle(prng);
-
-        self.leaves[0]
+    pub fn shuffle_tree_and_random_leaf(&self, prng: &mut Prng) -> usize {
+        loop {
+            let u = (prng.next_u64() % self.n as u64) as usize;
+            if self.arity[u] == 0 {
+                return u
+            }
+        }
     }
 
     pub fn get_critical_path<T: GraphCore>(&mut self, prng: &mut Prng, tree_buf: &mut T) -> Vec<usize> {
@@ -391,13 +394,18 @@ impl RootedTree {
 
     pub fn random_spider(&mut self, n2: usize, prng: &mut Prng) -> Vec<usize> {
         let mut ans = vec![];
-        self.shuffle_tree_and_random_leaf(prng);
+        //self.shuffle_tree_and_random_leaf(prng);
+
+        let mut node_order = (0..self.n).collect::<Vec<usize>>();
+        node_order.shuffle(prng);
+
         let mut visited = vec![false; self.n];
         visited[self.root] = true;
         ans.push(self.root);
         let mut i = 0;
         while ans.len() < n2 {
-            let u = self.leaves[i];
+            let u = node_order[i];
+            if self.arity[u] > 0 {i+=1; continue;}
             let mut v = u;
             while !visited[v] {
                 ans.push(v);
