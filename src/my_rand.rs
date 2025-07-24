@@ -8,7 +8,7 @@ pub fn my_rand(prng: &mut Xoshiro256PlusPlus) -> f64 {
     prng.next_u64() as f64 / u64::MAX as f64
 }
 
-pub fn radamacher(prng: &mut Xoshiro256PlusPlus) -> f64 {
+pub fn rademacher(prng: &mut Xoshiro256PlusPlus) -> f64 {
     prng.next_u64() as f64 / u64::MAX as f64 - 0.5
 }
 

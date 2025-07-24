@@ -23,7 +23,7 @@ overflow-checks = false
 [features]
 
 extension-module = ["pyo3/extension-module"]
-default = ["mean_path_heuristic"]
+default = ["mean_path_heuristic", "need_tarjan"]
 
 use_heuristic = []
 need_ebc = []
@@ -36,9 +36,11 @@ enable_counters = []
 
 large_graph = []
 
-louvain = []
 
 usual = ["mean_path_heuristic", "large_graph"]
+
+disable_vecvec_bound_check = []
+fast = ["disable_vecvec_bound_check"]
 
 [lib]
 name = "mylib"

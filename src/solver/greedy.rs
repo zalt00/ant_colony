@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 
 
-use rand::RngCore;
 
-use crate::{graph::{graph_core::GraphCore, graph_generator::GraphRng, MatGraph, RootedTree}, my_rand::Prng};
+use crate::graph::{graph_core::GraphCore, graph_generator::GraphRng, MatGraph, RootedTree};
 
 #[derive(PartialEq, PartialOrd)]
 struct ComparableFloat(f64);
@@ -91,7 +90,7 @@ pub fn multiple_greedy_bfs<T: GraphCore>(g: &T, mut k: usize) -> (u64, RootedTre
     for &max_degree_node in node_order[node_order.len() - k..].iter() {
         let mut tree = greedy_bfs_from_node(g, max_degree_node, &mut queue);
 
-        let disto = tree.new_disto_approx4();
+        let disto = tree.distance_sum();
         if disto < best_disto {
             best_disto = disto;
             best_tree = tree;

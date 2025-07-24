@@ -189,7 +189,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
                 if ydist < best_disto_approx {
                     best_approx_tree = y.clone();
                     best_disto_approx = ydist;
-                    trace2.0.push(y.new_disto_approx4());
+                    trace2.0.push(y.distance_sum());
                     trace2.1.push(y.stretch(&self.g, &mut self.tarjan_solver));
                     let d = y.distorsion(&self.g, &self.dist_matrix);
                     println!("{}", d);
