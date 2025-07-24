@@ -54,7 +54,7 @@ const LARGE_GRAPH_DATASET: &[&str] = &[
 ];
 
 const LARGE_GRAPH_RAWDATA_DIRS: &[&str] = &[
-    "data/other-large-graphs",
+    "data/other_large_graphs",
     "data/soc-LiveJournal1",
     "data/soc-pokec-relationships",
     "data/web-Google"
@@ -210,6 +210,7 @@ fn main() {
 
                 Profile::Benchmark => {
                     for &bin_path in LARGE_GRAPH_DATASET {
+                        println!("Launching test on {}", bin_path);
                         let dt = Data::load(bin_path);
                         for gdt in dt.samples {
                             println!("{}", gdt.label);
@@ -231,6 +232,7 @@ fn main() {
                     }
 
                     for &bin_path in SMALL_GRAPH_DATASET {
+                        println!("Launching test on {}", bin_path);
                         let dt = Data::load(bin_path);
                         for gdt in dt.samples {
                             println!("{}", gdt.label);

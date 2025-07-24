@@ -66,7 +66,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
             tarjan_solver, edges, prng, edge_betweeness_centrality,
             k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
             neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix,
-        recompute_distorsion: false, verbose: true, base_disto: INF }
+        recompute_distorsion: false, verbose: false, base_disto: INF }
 
 
     }

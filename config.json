@@ -1,31 +1,5 @@
 {
   "profiles": {
-    "ac-c8000-evap0.4-w0.5-seed143": {
-      "AntColony": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 143,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    },
-    "clustering_enron": {
-      "ClusteringTest": 1
-    },
-    "reg_graph": "RegularGraph",
-    "vns-vs-aco": {
-      "VNSvsACO": {
-        "c": 8000.0,
-        "evap": 0.4,
-        "seed": 123,
-        "w": 0.5,
-        "k": 10,
-        "ic": 600
-      }
-    },
-    "benchmark": "VNSFullTest",
-    "clique-cycle": "CliqueCycle",
     "benchmark2": "Benchmark",
     "ac-c8000-evap0.4-w0.5-seed121": {
       "AntColony": {
@@ -38,13 +12,39 @@
       }
     },
     "disto_approx": "DistoApprox",
+    "clique-cycle": "CliqueCycle",
+    "benchmark": "VNSFullTest",
     "new_dist_approx": "NewDistoApprox",
-    "clustering_dblp": {
-      "ClusteringTest": 0
-    },
-    "ntest1": "NeighborhoodTest",
     "clustering_facebook": {
       "ClusteringTest": 2
+    },
+    "ntest1": "NeighborhoodTest",
+    "vns-vs-aco": {
+      "VNSvsACO": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 123,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
+    "clustering_enron": {
+      "ClusteringTest": 1
+    },
+    "ac-c8000-evap0.4-w0.5-seed143": {
+      "AntColony": {
+        "c": 8000.0,
+        "evap": 0.4,
+        "seed": 143,
+        "w": 0.5,
+        "k": 10,
+        "ic": 600
+      }
+    },
+    "reg_graph": "RegularGraph",
+    "clustering_dblp": {
+      "ClusteringTest": 0
     }
   }
 }
