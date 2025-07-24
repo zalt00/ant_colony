@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rand::SeedableRng;
 
-use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, graph_generator::GraphRng, RootedTree}, my_rand::Prng, solver::{greedy::multiple_greedy_bfs, vns::VNS}, utils::{IterCountExt, TarjanSolver}};
+use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, graph_generator::GraphRng, RootedTree}, my_rand::Prng, solver::{greedy::{greedy_bfs, multiple_greedy_bfs, random_greedy_bfs}, vns::VNS}, utils::{IterCountExt, TarjanSolver}};
 
 
 pub mod aco2;
@@ -25,12 +25,12 @@ impl<T: GraphCore+GraphRng> Solver for VNS<T> {
     }
 }
 
-pub struct VNSWithStart<T: GraphCore+GraphRng, S: Solver> {
+pub struct VNSWithStart<T: GraphCore+GraphRng, S: Solver, const MODE_LG: usize, const MODE_SG: usize> {
     _vns: VNS<T>,
     _solver: S
 }
 
-impl<T: GraphCore+GraphRng, S: Solver<T=T>> Solver for VNSWithStart<T, S> {
+impl<T: GraphCore+GraphRng, S: Solver<T=T>, const MODE_LG: usize, const MODE_SG: usize> Solver for VNSWithStart<T, S, MODE_LG, MODE_SG> {
     type T = T;
 
     fn auto_parameters_solve(g: Self::T, ebc: Vec<f64>, dm: Vec<u32>, seed: u64, time_limit: f64) -> RootedTree {
@@ -38,10 +38,10 @@ impl<T: GraphCore+GraphRng, S: Solver<T=T>> Solver for VNSWithStart<T, S> {
         let (cc, _ccv) = g.bfs_connected_components();
         assert_eq!(cc, 1);
 
-        let mode = if g.vertex_count() < 800 {
-            0
+        let mode = if g.vertex_count() < 1500 {
+            MODE_SG
         } else {
-            2
+            MODE_LG
         };
         let mut vns: VNS<T> = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), mode);
         vns.recompute_distorsion = false;
@@ -131,6 +131,18 @@ impl Solver for BestRandomVND {
 }
 
 
+pub struct MultiBFSTree<T: GraphCore+GraphRng> {
+    __: T
+}
+
+impl<T: GraphCore+GraphRng> Solver for MultiBFSTree<T> {
+    type T = T;
+
+    fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, _seed: u64, _time_limit: f64) -> RootedTree {
+        multiple_greedy_bfs(&g, 10).1
+    }
+}
+
 pub struct BFSTree<T: GraphCore+GraphRng> {
     __: T
 }
@@ -139,10 +151,21 @@ impl<T: GraphCore+GraphRng> Solver for BFSTree<T> {
     type T = T;
 
     fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, _seed: u64, _time_limit: f64) -> RootedTree {
-        multiple_greedy_bfs(&g, 10).1
+        greedy_bfs(&g)
     }
 }
 
+pub struct RandomStartBFSTree<T: GraphCore+GraphRng> {
+    __: T
+}
+
+impl<T: GraphCore+GraphRng> Solver for RandomStartBFSTree<T> {
+    type T = T;
+
+    fn auto_parameters_solve(g: Self::T, _ebc: Vec<f64>, _dm: Vec<u32>, _seed: u64, _time_limit: f64) -> RootedTree {
+        random_greedy_bfs(&g, &mut Prng::seed_from_u64(_seed))
+    }
+}
 
 
 pub struct TestRandom;

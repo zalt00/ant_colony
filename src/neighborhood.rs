@@ -18,7 +18,7 @@ impl NSVal {
         match self {
             Self::Sqrt(mul, div) => {n.isqrt() * mul / div},
             Self::N(mul, div) => {n * mul / div}
-        }
+        }.max(10)
     }
 }
 
@@ -453,7 +453,7 @@ impl RootedTree {
     {
         //println!("{:?}", vertices);
 
-        use crate::{solver::{community_solver::renumber_edges, BFSTree, Solver}, utils::HashMapExt};
+        use crate::{solver::{community_solver::renumber_edges, BFSTree, RandomStartBFSTree, Solver}, utils::HashMapExt};
         tree_buf.reset();
 
         let mut covered_vertices = vec![false; self.n];
@@ -479,7 +479,7 @@ impl RootedTree {
         //println!("{:?}", possible_edges);
         let seed = prng.next_u64();
         let t_better = //VNSWithStartMode1::<T, BFSTree<T>>
-        BFSTree::<T>::auto_parameters_solve(g2, vec![], vec![], seed, 0.5);
+        RandomStartBFSTree::<T>::auto_parameters_solve(g2, vec![], vec![], seed, 0.5);
         //println!("euh ? {}", vertices.len());
 
         let new2old = old2new.inverse();

@@ -12,7 +12,7 @@ use crate::solver::community_solver::MultiBfsPartitioner;
 use crate::solver::community_solver::{CommunitySolver, LouvainPartitioner, Partitioner};
 use crate::solver::greedy::{greedy_bfs, greedy_ebc_delete_no_recompute};
 use crate::solver::vns::VNS;
-use crate::solver::{BFSTree, Solver, VNSWithStart};
+use crate::solver::{BFSTree, MultiBFSTree, Solver, VNSWithStart};
 use pyo3::ffi::c_str;
 use pyo3::types::PyDict;
 use rand::{RngCore, SeedableRng};
@@ -272,8 +272,8 @@ fn main() {
                     println!("n={}, m={}", gdt.n, gdt.m);
                     let (g, ebc, dm) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     
-                    let (t, d) = greedy_bfs(&g);
-                    println!("greedy bfs result: {}", t);
+                    let mut d = greedy_bfs(&g);
+                    println!("greedy bfs result: {}", d.new_disto_approx4());
                     
                     
                     
@@ -313,8 +313,8 @@ fn main() {
 
                     let mut prng = Prng::seed_from_u64(12);
                     println!("loading samples...");
-                    let data = Data::load("binary_data/soc-pokec-relationships.data");
-                    let gdt = &data.samples[0];
+                    let data = Data::load("binary_data/graph-benchmark-samples.data");
+                    let gdt = &data.samples[1];
                     println!("{}", gdt.label);
                     let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     //let g = CompressedGraph::random_graph(100,800, &mut prng);
@@ -339,16 +339,20 @@ fn main() {
 
                     // let d = multiple_greedy_bfs(&g, 5);
                     // println!("{}", d.0);
-                    let t1 = VNSWithStart::<CompressedGraph, BFSTree<CompressedGraph>>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
+                    let mut tbfs = MultiBFSTree::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 112, 1.0);
+                    let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree<CompressedGraph>, 2, 0>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
                     // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
-                    let dm = g.get_dist_matrix();
-
-                    println!("vns with start: {}", t1.distorsion(&g, &dm));
 
 
+                    println!("{:.2}%", t1.new_disto_approx4() as f64 / tbfs.new_disto_approx4() as f64 * 100.0);
+                    
+                    // let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree<CompressedGraph>, 2, 1>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
+                    // // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
 
 
-
+                    // println!("{:.2}%", t1.new_disto_approx4() as f64 / tbfs.new_disto_approx4() as f64 * 100.0)
+                    
+                    
                     //println!("vns: {}", t2.distorsion(&g, &dm))
                     // let mut sa = SA::new(g.clone(), 111, vec![], g.get_dist_matrix());
                     // sa.beuh(10.0);

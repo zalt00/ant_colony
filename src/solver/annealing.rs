@@ -165,7 +165,7 @@ impl<T: GraphCore+GraphRng> SA<T> {
 
         let now = Instant::now();
         let mut cur_approx_tree ;//= self.g.random_subtree(&mut self.prng);
-        cur_approx_tree = greedy_bfs(&self.g).1;
+        cur_approx_tree = greedy_bfs(&self.g);
         println!("{}", cur_approx_tree.distorsion(&self.g, &self.dist_matrix));
         let mut cur_disto_approx = cur_approx_tree.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 

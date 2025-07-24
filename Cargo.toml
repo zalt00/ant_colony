@@ -17,7 +17,7 @@ pyo3 = { version = "0.25.1" }
 
 
 [profile.release]
-debug = false
+debug = true
 overflow-checks = false
 
 [features]

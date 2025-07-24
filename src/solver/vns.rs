@@ -43,15 +43,15 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
     pub fn new(g: T, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode: usize) -> VNS<T> {
         use NeighborhoodStrategies::*;
-        static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 3]; 3] = [
-            [SubtreeSubtreeVNS(NSVal::N(1, 10)), SpiderSubtreeVNS(NSVal::N(1, 10)), SubtreeSubtreeSwap(NSVal::N(1, 2))],
-            [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap],
-            [SubtreeSubtreeVNS(NSVal::N(1, 5)), SpiderSubtreeVNS(NSVal::N(1, 10)), SubtreeSubtreeSwap(NSVal::N(1, 3))]   
+        static NEIGHBORHOOD_STRATEGIES: [[NeighborhoodStrategies; 4]; 3] = [
+            [SubtreeSubtreeVNS(NSVal::N(1, 50)), SpiderSubtreeSwap(NSVal::N(1, 100)), SubtreeSubtreeSwap(NSVal::N(1, 5)), SpiderSubtreeVNS(NSVal::N(1, 10))],
+            [CriticalPathSubtreeRelocation, EdgeSubtreeRelocation, EdgeSwap, CriticalPathSubtreeRelocation],
+            [SubtreeSubtreeVNS(NSVal::N(1, 5)), SpiderSubtreeVNS(NSVal::N(1, 10)), SubtreeSubtreeSwap(NSVal::N(1, 3)), SpiderSubtreeSwap(NSVal::N(1, 100))]   
         ];
-        static NEIGHBORHOOD_SAMPLE_SIZES: [[usize; 3]; 3] = [
-            [500, 600, 25],
-            [25, 25, 40],
-            [50, 70, 2]
+        static NEIGHBORHOOD_SAMPLE_SIZES: [[usize; 4]; 3] = [
+            [25, 60, 2, 25],
+            [25, 25, 40, 25],
+            [50, 70, 2, 40]
         ];
 
 
@@ -276,7 +276,7 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
                 // shake
                 self.init_strategy(&mut x, self.k);
-                if self.verbose {println!("shake strat {}", self.k)};
+                if cfg!(feature="verbose") && self.verbose {println!("shake strat {}", self.k)};
                 let mut y = self.get_neighbor(&mut x, self.k);
                 let ydist = y.heuristic(&self.g, &self.edges, &mut self.tarjan_solver, &self.edge_betweeness_centrality, &self.dist_matrix);
 
