@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 pub mod graph_core;
 pub mod graph_generator; 
 pub mod compressed_graph;
-pub mod parent_tree;
-use self::compressed_graph::init_compressed_vecvec;
+pub mod graph_serde;
+
+use crate::utils::CompressedVecVec;
+
 use self::graph_core::GraphCore;
 use self::graph_generator::GraphRng;
 
@@ -17,17 +19,6 @@ use self::graph_generator::GraphRng;
 pub const N: usize = 20_000_000;
 #[cfg(not(feature="large_graph"))]
 pub const N: usize = 50000;
-
-pub fn repr<T: Debug>(mat: &Vec<T>) -> String {
-    let mut s= String::new();
-    let n = (mat.len() as f64).sqrt() as usize;
-    for i in 0..n {
-        s.push_str(format!("{:?}\n", &mat[i * n..(i+1) * n]).as_str());
-    }
-
-    s
-}
-
 
 #[derive(Debug, Clone, Default)]
 pub struct MatGraph {
@@ -101,38 +92,6 @@ impl MatGraph {
         &mut self.adj_tab[i * self.n + 1..i * self.n + nc + 1]
     }
 
-    pub fn from_string(s: String) -> Option<(f64, MatGraph)> {
-
-        let data: Vec<&str> = s.split("|").collect();
-        let disto: f64 = data[0].parse().ok()?;
-        let n: usize = data[1].parse().ok()?;
-
-        let mut g = MatGraph::new_empty(n);
-
-        for line in data[2].trim().split(";") {
-            let l: Vec<&str> = line.split(",").collect();
-            let i: usize = l[0].parse().ok()?;
-            let j: usize = l[1].parse().ok()?;
-            g.add_edge_unckecked(i, j); 
-        }
-        Some((disto, g))
-    }
-
-
-
-    pub fn s22_slow(&self, dist_matrix: &mut Vec<u32>) -> f64 {
-        self.update_dist_matrix(dist_matrix);   
-
-        let mut s = 0;
-        for i in 0..(self.n-1) {
-            for j in (i+1)..self.n {
-                s += dist_matrix[i + self.n * j] as u64;
-            }
-
-        }
-        s as f64
-    }
-
     pub fn distorsion_approx0(&mut self, dist_matrix: &mut Vec<u32>, edges: &Vec<[usize; 2]>, ebc: &Vec<f64>) -> f64 {
         self.update_dist_matrix(dist_matrix);   
         let mut s = 0.0;
@@ -157,25 +116,6 @@ impl MatGraph {
 
         s / self.n as f64 / (self.n-1) as f64
 
-    }
-
-    pub fn ajout_sommet_arbre_recalculer_dist(&mut self, dist_matrix: &mut Vec<u32>, ens_sommets: &mut Vec<usize>, u: usize, parent: usize) {
-        for s in ens_sommets.iter() {
-            let v = dist_matrix[*s + self.n * parent];
-            dist_matrix[*s + self.n * u] = v + 1;
-            dist_matrix[u + self.n * *s] = v + 1;
-        }
-
-        ens_sommets.push(u);
-    }
-
-    pub fn annuler_recalcul(&mut self, dist_matrix: &mut Vec<u32>, ens_sommets: &mut Vec<usize>, u: usize) {
-        for s in ens_sommets.iter() {
-            dist_matrix[*s + self.n * u] = u32::MAX;
-            dist_matrix[u + self.n * *s] = u32::MAX;
-        }
-
-        ens_sommets.pop();
     }
 
     pub fn stretch_moyen(&self, parent_g: &MatGraph, dist_matrix: &Vec<u32>, ens_sommets: &Vec<usize>, sommet_dedans: &Vec<bool>) -> f64 {
@@ -214,13 +154,6 @@ impl GraphCore for MatGraph {
         g
     }
     
-    // fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
-    //     self.clear();
-    //     for &[u, v] in edges {
-    //         self.add_edge_unckecked(u, v);
-    //     }
-    // }
-    
     fn clone_empty(&self) -> Self {
         Self::new_empty(self.n)
     }
@@ -244,12 +177,12 @@ impl GraphCore for MatGraph {
         self.adj_tab[i * self.n]
     }
     
-    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>) {
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> CompressedVecVec<X> {
         let mut degrees = vec![0; self.n];
         for u in 0..self.n {
             degrees[u] = self.get_neighboor_count_unchecked(u);
         }
-        init_compressed_vecvec(init_value, self.n, &degrees)
+        CompressedVecVec::new(init_value, self.n, &degrees)
     }
 
 
@@ -338,7 +271,7 @@ impl RootedTree {
     pub fn update_leaves(&mut self) {}
 
     pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut Vec<u64>) {
-        static mut QUEUE: [usize; 50000000] = [0; 50000000];
+        static mut QUEUE: [usize; 50_000_000] = [0; 50000000];
         let mut i = 0;
         let mut j = 0;
         for u in 0..self.n {
@@ -396,17 +329,17 @@ impl RootedTree {
         }
     }
 
-    pub fn get_children_compressed_vecvec(&mut self) -> (Vec<usize>, Vec<usize>) {
-        let (idx, mut children) = init_compressed_vecvec(0, self.n, &self.arity);
+    pub fn get_children_compressed_vecvec(&mut self) -> CompressedVecVec<usize> {
+        let mut children = CompressedVecVec::new(usize::MAX, self.n, &self.arity);
         for u in 0..self.n {
             if u != self.root {
                 let p = self.parent[u];
                 self.arity[p] -= 1;
-                children[idx[p] + self.arity[p]] = u;
+                children.get_slice_mut(p)[self.arity[p]] = u;
             }
         }
         self.recompute_arity();
-        (idx, children)
+        children
     }
 
     pub fn reroot<T: GraphCore>(&self, template: &T, root: usize) -> RootedTree {

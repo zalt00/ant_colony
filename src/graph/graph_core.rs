@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use rand::{seq::SliceRandom, RngCore};
 
-use crate::{graph::N, my_rand::Prng, solver::community_solver::renumber_edges, utils::IterCountExt};
+use crate::{graph::N, my_rand::Prng, utils::{renumber_edges, CompressedVecVec, IterCountExt}};
 static mut QUEUE: [(usize, u32); N] = [(0, 0); N];
 
 pub trait GraphCore: Clone {
@@ -14,7 +14,7 @@ pub trait GraphCore: Clone {
     fn add_edge_unckecked(&mut self, u: usize, v: usize);
     fn reset(&mut self);
     fn clone_empty(&self) -> Self;
-    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>);
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> CompressedVecVec<X>;
 
 
     fn get_edges(&self) -> Vec<[usize; 2]> {

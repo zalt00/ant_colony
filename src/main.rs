@@ -3,20 +3,14 @@ use std::{collections::HashMap, fs::File};
 
 
 
-
-#[cfg(not(feature="louvain"))]
-use crate::solver::community_solver::MultiBfsPartitioner;
-#[cfg(feature="louvain")]
-use crate::solver::community_solver::LouvainPartitioner;
-use crate::solver::greedy::{greedy_bfs, multiple_greedy_bfs};
+use crate::graph::graph_serde::{Data, GraphData};
+use crate::solver::greedy::multiple_greedy_bfs;
 use crate::solver::{MultiBFSTree, Solver, VNSWithStart};
 use rand::SeedableRng;
 
 use crate::graph::compressed_graph::CompressedGraph;
-use crate::trace::{TraceData, TraceResult};
 use crate::utils::test_segment_tree;
 use crate::my_rand::Prng;
-use crate::graph::graph_generator::{Data, GraphData};
 use crate::config::Profile;
 use crate::config::Config;
 use crate::config::AntColonyProfile;
@@ -39,12 +33,7 @@ pub fn save_result(gdt: &GraphData, label: &str, trace: (f64, u64, u64)) {
     serde_json::to_writer_pretty(&mut file, &trace).expect("error");
 
 }
-
-
-#[cfg(not(feature="louvain"))]
-pub type MyPartitioner = MultiBfsPartitioner;
-#[cfg(feature="louvain")]
-pub type MyPartitioner = LouvainPartitioner;
+ 
 
 const LARGE_GRAPH_DATASET: &[&str] = &[
     "binary_data/other-large-graphs.data",
@@ -137,16 +126,13 @@ fn main() {
             println!("% launching profile <{}>:", mode);
 
             match profile {
-                Profile::ClusteringTest(gi) => {
-
-
-
+                Profile::ClusteringTest(_gi) => {
                 },
                 Profile::RegularGraph => {
 
-                    let mut prng = Prng::seed_from_u64(12);
+                    let mut _prng = Prng::seed_from_u64(12);
                     println!("loading samples...");
-                    let data = Data::load("binary_data/web-Google.data");
+                    let data = Data::load("binary_data/graph-benchmark-samples.data");
                     let gdt = &data.samples[0];
                     println!("{}", gdt.label);
                     let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
@@ -173,17 +159,17 @@ fn main() {
                     // let d = multiple_greedy_bfs(&g, 5);
                     // println!("{}", d.0);
                     let mut tbfs = MultiBFSTree::<50>::auto_parameters_solve(g.clone(), vec![], vec![], 112, 1.0);
-                    let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 1800.0);
+                    let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 10.0);
                     // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
 
 
-                    println!("{:.2}%", t1.new_disto_approx4() as f64 / tbfs.new_disto_approx4() as f64 * 100.0);
+                    println!("{:.2}%", t1.distance_sum() as f64 / tbfs.distance_sum() as f64 * 100.0);
                     
                     // let mut t1 = VNSWithStart::<CompressedGraph, MultiBFSTree<CompressedGraph>, 2, 1>::auto_parameters_solve(g.clone(), vec![], vec![], 134, 60.0);
                     // // // //let t2 = VNS::<CompressedGraph>::auto_parameters_solve(g.clone(), vec![], vec![], 1234, 60.0);
 
 
-                    // println!("{:.2}%", t1.new_disto_approx4() as f64 / tbfs.new_disto_approx4() as f64 * 100.0)
+                    // println!("{:.2}%", t1.distance_sum() as f64 / tbfs.distance_sum() as f64 * 100.0)
                     
                     
                     //println!("vns: {}", t2.distorsion(&g, &dm))
@@ -219,12 +205,12 @@ fn main() {
 
                             {
                                 let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
-                                let vns1dist = tvns1.new_disto_approx4();
+                                let vns1dist = tvns1.distance_sum();
                                 save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
 
                             }{
                                 let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
-                                let vns2dist = tvns2.new_disto_approx4();
+                                let vns2dist = tvns2.distance_sum();
                                 save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
 
                             }
@@ -241,12 +227,12 @@ fn main() {
 
                             {
                                 let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
-                                let vns1dist = tvns1.new_disto_approx4();
+                                let vns1dist = tvns1.distance_sum();
                                 save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
 
                             }{
                                 let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 1>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
-                                let vns2dist = tvns2.new_disto_approx4();
+                                let vns2dist = tvns2.distance_sum();
                                 save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
 
                             }

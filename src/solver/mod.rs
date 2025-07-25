@@ -2,14 +2,16 @@ use std::time::Instant;
 
 use rand::SeedableRng;
 
-use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, graph_generator::GraphRng, RootedTree}, my_rand::Prng, solver::{greedy::{greedy_bfs, multiple_greedy_bfs, random_greedy_bfs}, vns::VNS}, utils::{IterCountExt, TarjanSolver}};
+use crate::utils::TarjanSolver;
+use crate::solver::{greedy::{greedy_bfs, multiple_greedy_bfs, random_greedy_bfs}, vns::VNS};
+use crate::my_rand::Prng;
+use crate::graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, graph_generator::GraphRng, RootedTree};
 
 
 pub mod aco2;
 pub mod annealing;
 pub mod greedy;
 pub mod vns;
-pub mod community_solver;
 
 pub trait Solver {
     type T: GraphCore+GraphRng;

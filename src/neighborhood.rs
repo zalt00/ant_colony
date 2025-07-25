@@ -461,7 +461,8 @@ impl RootedTree {
     {
         //println!("{:?}", vertices);
 
-        use crate::{solver::{community_solver::renumber_edges, BFSTree, RandomStartBFSTree, Solver}, utils::HashMapExt};
+        use crate::{solver::{RandomStartBFSTree, Solver}, utils::{renumber_edges, HashMapExt}};
+
         tree_buf.reset();
 
         let mut covered_vertices = vec![false; self.n];

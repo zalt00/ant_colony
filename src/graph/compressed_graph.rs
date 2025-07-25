@@ -1,48 +1,22 @@
-use crate::graph::{graph_core::GraphCore, graph_generator::GraphRng};
+use crate::{graph::{graph_core::GraphCore, graph_generator::GraphRng}, utils::CompressedVecVec};
 
 
 
 
 
-pub fn init_compressed_vecvec<T: Clone+Copy>(init_value: T, n: usize, degrees: &Vec<usize>) 
-    -> (Vec<usize>, Vec<T>) {
-        let mut idx = vec![0; n];
-        for i in 1..n {
-            idx[i] = idx[i-1] + degrees[i-1];
-        }
-        let s = idx[n-1] + degrees[n-1];
-        let data = vec![init_value; s];
 
-        (idx, data)
-    }
-
-pub fn init_compressed_vecvec_idx(n: usize, degrees: &Vec<usize>) 
-    -> Vec<usize> {
-        let mut idx = vec![0; n];
-        for i in 1..n {
-            idx[i] = idx[i-1] + degrees[i-1];
-        }
-
-        idx
-    }
 
 #[derive(Clone, Default)]
 pub struct CompressedGraph {
     pub(crate) n: usize,
-    idx: Vec<usize>,
-    data: Vec<usize>,
+    adj_array: CompressedVecVec<usize>,
     degrees: Vec<usize>  // current degrees (for add_edge_unchecked)
 }
 
 impl CompressedGraph {
     pub fn new(n: usize, degrees: &Vec<usize>) -> CompressedGraph {
-        let (idx, data) = init_compressed_vecvec(usize::MAX, n, &degrees);
-        CompressedGraph { n, idx, data, degrees: vec![0; n] }
-    }
-
-
-    pub fn len(&self) -> usize {
-        self.data.len()
+        let adj_array = CompressedVecVec::new(usize::MAX, n, degrees);
+        CompressedGraph { n, adj_array, degrees: vec![0; n] }
     }
 
     fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
@@ -57,7 +31,7 @@ impl CompressedGraph {
 
 impl GraphCore for CompressedGraph {
     fn get_neighbors(&self, i: usize) -> &[usize] {
-        &self.data[self.idx[i]..self.idx[i] + self.degrees[i]]
+        &self.adj_array.get_slice(i)[..self.degrees[i]]
     }
 
     fn vertex_count(&self) -> usize {
@@ -81,11 +55,12 @@ impl GraphCore for CompressedGraph {
     }
     
     fn add_edge_unckecked(&mut self, u: usize, v: usize) {
-        self.data[self.idx[u] + self.degrees[u]] = v;
+        self.adj_array.get_slice_mut(u)[self.degrees[u]] = v;
         self.degrees[u] += 1;
 
-        self.data[self.idx[v] + self.degrees[v]] = u;
-        self.degrees[v] += 1;    }
+        self.adj_array.get_slice_mut(v)[self.degrees[v]] = u;
+        self.degrees[v] += 1;    
+    }
     
     fn reset(&mut self) {
         self.degrees.fill(0);
@@ -95,9 +70,8 @@ impl GraphCore for CompressedGraph {
         self.degrees[i]
     }
     
-    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> (Vec<usize>, Vec<X>) {
-        // println!("wee");
-        init_compressed_vecvec(init_value, self.n, &self.degrees)
+    fn get_edges_compressed_vecvec<X: Clone+Copy>(&self, init_value: X) -> CompressedVecVec<X> {
+        CompressedVecVec::new(init_value, self.n, &self.degrees)
     }
 
 
