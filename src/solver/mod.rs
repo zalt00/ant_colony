@@ -54,6 +54,7 @@ impl<T: GraphCore+GraphRng, S: Solver<T=T>, const MODE_LG: usize, const MODE_SG:
         }
         let mut vns: VNS<T> = VNS::new(g.clone(), seed, ebc.clone(), dm.clone(), mode);
         vns.recompute_distorsion = false;
+        //vns.verbose = cfg!(feature="verbose");
         let base_tree = S::auto_parameters_solve(g.clone(), ebc.clone(), dm.clone(), seed + 15, time_limit);
 
         vns.gvns2(base_tree, 10000, time_limit)

@@ -3,9 +3,12 @@ use std::{collections::HashMap, fs::File};
 
 
 
+use crate::graph::graph_core::GraphCore;
+use crate::graph::graph_generator::GraphRng;
 use crate::graph::graph_serde::{Data, GraphData};
 use crate::solver::greedy::multiple_greedy_bfs;
 use crate::solver::{MultiBFSTree, Solver, VNSWithStart};
+use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
 use crate::graph::compressed_graph::CompressedGraph;
@@ -191,51 +194,89 @@ fn main() {
 
 
                 Profile::NewDistoApprox => {
+                    let data = Data::load("binary_data/social-network-samples.data");
+                    let gdt = &data.samples[1];
+                    println!("{} n={}", gdt.label, gdt.n);
+
+                    let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    let mut prng = Prng::seed_from_u64(121);
+                    let t = g.random_subtree(&mut prng);
+                    let mut t_g = t.to_graph(&g);
+                    let mut edges = g.get_edges();
+                    edges.shuffle(&mut prng);
+                    for &[u, v] in edges[..500].iter() {
+                        if !t.has_edge(u, v) {
+                            t_g.add_edge_unckecked(u, v);
+                        } 
+                    }
+                    use std::io::Write;
+                    let mut file = File::create("data/wiki_sparse.txt").unwrap();
+                    for &[u, v] in t_g.get_edges().iter() {
+                        writeln!(&mut file, "{} {}", u, v).unwrap();
+                    }
+
+
 
                 },
 
                 Profile::Benchmark => {
-                    for &bin_path in LARGE_GRAPH_DATASET {
-                        println!("Launching test on {}", bin_path);
-                        let dt = Data::load(bin_path);
-                        for gdt in dt.samples {
-                            println!("{}", gdt.label);
-                            let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
-                            let (bfsdist, _tbfs) = multiple_greedy_bfs(&g, 50);
+                    // for &bin_path in LARGE_GRAPH_DATASET {
+                    //     println!("Launching test on {}", bin_path);
+                    //     let dt = Data::load(bin_path);
+                    //     for gdt in dt.samples {
+                    //         println!("{}", gdt.label);
+                    //         let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    //         let (bfsdist, _tbfs) = multiple_greedy_bfs(&g, 50);
 
-                            {
-                                let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
-                                let vns1dist = tvns1.distance_sum();
-                                save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
+                    //         {
+                    //             let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
+                    //             let vns1dist = tvns1.distance_sum();
+                    //             save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
 
-                            }{
-                                let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
-                                let vns2dist = tvns2.distance_sum();
-                                save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
+                    //         }{
+                    //             let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 3600.0);
+                    //             let vns2dist = tvns2.distance_sum();
+                    //             save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
 
-                            }
-                        }
-                    }
-
+                    //         }
+                    //     }
+                    // }
                     for &bin_path in SMALL_GRAPH_DATASET {
                         println!("Launching test on {}", bin_path);
                         let dt = Data::load(bin_path);
+
+                        let mut vals = vec![];
                         for gdt in dt.samples {
-                            println!("{}", gdt.label);
+                            //println!("{}", gdt.label);
                             let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                             let (bfsdist, _tbfs) = multiple_greedy_bfs(&g, 50);
+                            let dist = _tbfs.distorsion(&g, &g.get_dist_matrix());
+                            //println!("{},{}", gdt.label, dist);
+                            
+                            vals.push((gdt, dist))
+                            // {
+                            //     let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
+                            //     let vns1dist = tvns1.distance_sum();
+                            //     save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
 
-                            {
-                                let mut tvns1 = VNSWithStart::<CompressedGraph, MultiBFSTree, 2, 0>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
-                                let vns1dist = tvns1.distance_sum();
-                                save_result(&gdt, "super-vns1", (vns1dist as f64 / bfsdist as f64, vns1dist, bfsdist));
+                            // }{
+                            //     let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 1>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
+                            //     let vns2dist = tvns2.distance_sum();
+                            //     save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
 
-                            }{
-                                let mut tvns2= VNSWithStart::<CompressedGraph, MultiBFSTree, 0, 1>::auto_solve_no_ebcdm(g.clone(), 1234, 600.0);
-                                let vns2dist = tvns2.distance_sum();
-                                save_result(&gdt, "super-vns2", (vns2dist as f64 / bfsdist as f64, vns2dist, bfsdist));
+                            // }
+                        }
 
-                            }
+                        vals.sort_by_key(|(gdt, dist)| {
+                            let lab = gdt.label.clone();
+                            let lab2: String = lab.to_ascii_uppercase().chars().map(|c| {if c.is_ascii_digit() {"".to_string()} else {c.to_string()}}).collect();
+
+                            (gdt.n, lab2, gdt.m)
+
+                        });
+
+                        for (gdt, dist) in vals.iter() {
+                            println!("{},{}", gdt.label, dist);
                         }
                     }
 

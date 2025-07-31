@@ -414,4 +414,33 @@ pub fn renumber_edges(edges: &mut Vec<[usize; 2]>) -> HashMap<usize, usize> {
     }
     hmap
 }
+pub fn renumber_edges2(edges: &mut [[usize; 2]], old2new: &mut [usize], new2old: &mut [usize]) {
+    // old vertex id -> new vertex id
+    let mut i = 0;
+    for &[u, v] in edges.iter() {
+        old2new[u] = usize::MAX;
+        old2new[v] = usize::MAX;
+    }
+
+    for e in edges {
+        let [u, v] = *e;
+        if old2new[u] == usize::MAX {
+            old2new[u] = i;
+            i += 1;
+        }
+
+        if old2new[v] == usize::MAX {
+            old2new[v] = i;
+            i += 1;
+        }
+
+        e[0] = old2new[u];
+        e[1] = old2new[v];
+
+        new2old[old2new[u]] = u;
+        new2old[old2new[v]] = v;
+
+    }
+}
+
 

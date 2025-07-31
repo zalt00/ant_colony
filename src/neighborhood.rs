@@ -457,11 +457,11 @@ impl RootedTree {
 
     #[cfg(feature="mean_path_heuristic")]
     pub fn subtree_vns_with_vertices<T: GraphCore+GraphRng>(&self, prng: &mut Prng, vertices: &Vec<usize>,
-        g: &T, tree_buf: &mut T)
+        g: &T, tree_buf: &mut T, old2new: &mut [usize], new2old: &mut [usize])
     {
         //println!("{:?}", vertices);
 
-        use crate::{solver::{RandomStartBFSTree, Solver}, utils::{renumber_edges, HashMapExt}};
+        use crate::{solver::{RandomStartBFSTree, Solver}, utils::{renumber_edges, renumber_edges2, HashMapExt}};
 
         tree_buf.reset();
 
@@ -483,7 +483,7 @@ impl RootedTree {
             }
         }
         //println!("halo ? {}", vertices.len());
-        let old2new = renumber_edges(&mut possible_edges);
+        renumber_edges2(&mut possible_edges, old2new, new2old);
         let g2 = T::from_edges(vertices.len(), &possible_edges);
         //println!("{:?}", possible_edges);
         let seed = prng.next_u64();
@@ -491,9 +491,8 @@ impl RootedTree {
         RandomStartBFSTree::<T>::auto_parameters_solve(g2, vec![], vec![], seed, 0.5);
         //println!("euh ? {}", vertices.len());
 
-        let new2old = old2new.inverse();
         for [unew, vnew] in t_better.edges() {
-            tree_buf.add_edge_unckecked(new2old[&unew], new2old[&vnew]);
+            tree_buf.add_edge_unckecked(new2old[unew], new2old[vnew]);
         }
 
 
@@ -504,15 +503,17 @@ impl RootedTree {
         }
     }
 
-    pub fn subtree_vns_with_random_critical_path<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, g: &T, tree_buf: &mut T) {
+    pub fn subtree_vns_with_random_critical_path<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, g: &T, tree_buf: &mut T,
+    old2new: &mut [usize], new2old: &mut [usize]) {
         let cp = self.get_critical_path(prng, tree_buf);
-        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf, old2new, new2old)
     }
 
-    pub fn subtree_vns_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+    pub fn subtree_vns_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T,
+    old2new: &mut [usize], new2old: &mut [usize]) {
         let cp = self.random_spider(n2, prng);
         //println!("cp lenn {} {}", cp.len(), self.leaves.len());
-        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf, old2new, new2old)
     }
     pub fn subtree_swap_with_random_spider<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
         let cp = self.random_spider(n2, prng);
@@ -520,10 +521,11 @@ impl RootedTree {
     }
 
 
-    pub fn subtree_vns_with_random_subtree<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
+    pub fn subtree_vns_with_random_subtree<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T,
+    old2new: &mut [usize], new2old: &mut [usize]) {
         let cp = self.random_subtree_incomplete(prng, n2, tree_buf);
         //println!("cp lenn {} {}", cp.len(), self.leaves.len());
-        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf)
+        self.subtree_vns_with_vertices(prng, &cp, g, tree_buf, old2new, new2old)
     }
     pub fn subtree_swap_with_random_subtree<T: GraphCore+GraphRng>(&mut self, prng: &mut Prng, n2: usize, g: &T, tree_buf: &mut T) {
         let cp = self.random_subtree_incomplete(prng, n2, tree_buf);

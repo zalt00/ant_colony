@@ -335,9 +335,9 @@ pub trait GraphCore: Clone {
             }
 
             renumber_edges(&mut edges);
-           let g = Self::from_edges_only(&edges);
-           assert!(g.vertex_count() == _count);
-           g
+            let g = Self::from_edges_only(&edges);
+            assert!(g.vertex_count() == _count);
+            g
         }
     }
 
