@@ -37,7 +37,10 @@ pub enum NeighborhoodStrategies {
 
 
 impl RootedTree {
-    pub fn edge_removable_for_swap(&mut self, ei: usize, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
+
+
+
+    pub fn edge_removable_for_swap(&self, ei: usize, edges: &Vec<[usize; 2]>) -> [Vec<usize>; 2]
     {
         // let ar_bkp = self.arity.clone();
         // self.arity.fill(0);
@@ -54,7 +57,9 @@ impl RootedTree {
 
         // essentiellement, renvoie un chemin dans l'arbre entre les deux extremites de ei
         let [u, v] = edges[ei];
-
+        self.path_between(u, v)
+    }
+    pub fn path_between(&self, u: usize, v: usize) -> [Vec<usize>; 2] {
         if self.parent[u] != v && self.parent[v] != u {
 
             let mut resu = vec![];

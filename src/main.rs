@@ -6,10 +6,10 @@ use std::{collections::HashMap, fs::File};
 use crate::graph::graph_core::GraphCore;
 use crate::graph::graph_generator::GraphRng;
 use crate::graph::graph_serde::{Data, GraphData};
-use crate::solver::greedy::multiple_greedy_bfs;
+use crate::solver::greedy::{greedy_bfs, multiple_greedy_bfs};
 use crate::solver::{MultiBFSTree, Solver, VNSWithStart};
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use rand::seq::{IndexedRandom, SliceRandom};
+use rand::{RngCore, SeedableRng};
 
 use crate::graph::compressed_graph::CompressedGraph;
 use crate::utils::test_segment_tree;
@@ -27,7 +27,7 @@ pub mod neighborhood;
 pub mod trace;
 pub mod distorsion_heuristics;
 pub mod counters;
-
+pub mod sparse_graph_edge_betweeness;
 
 pub fn save_result(gdt: &GraphData, label: &str, trace: (f64, u64, u64)) {
     let path = format!("{}_result-{}.json", gdt.label, label);
@@ -194,26 +194,31 @@ fn main() {
 
 
                 Profile::NewDistoApprox => {
-                    let data = Data::load("binary_data/social-network-samples.data");
+                    let data = Data::load("binary_data/graph-benchmark-samples.data");
                     let gdt = &data.samples[1];
                     println!("{} n={}", gdt.label, gdt.n);
-
+                    let n = gdt.n;
                     let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
+                    
                     let mut prng = Prng::seed_from_u64(121);
-                    let t = g.random_subtree(&mut prng);
+                    let g = CompressedGraph::random_graph(1000, 20000, &mut prng);
+                    let mut t = g.random_subtree(&mut prng);
+                    let mut t = greedy_bfs(&g);
                     let mut t_g = t.to_graph(&g);
-                    let mut edges = g.get_edges();
-                    edges.shuffle(&mut prng);
-                    for &[u, v] in edges[..500].iter() {
-                        if !t.has_edge(u, v) {
-                            t_g.add_edge_unckecked(u, v);
-                        } 
+                    // println!("{}", t.distorsion(&g, &g.get_dist_matrix()));
+                    // println!("{}", t_g.wiener(&mut vec![0; n*n]));
+                    println!("{}", t.distance_sum());
+
+                    let edges = g.get_edges();
+                    let mut additional_edges = Vec::new();
+                    while additional_edges.len() < 100 {
+                        let &e = edges.choose(&mut prng).unwrap();
+                        if !t.has_edge(e[0], e[1]) && !additional_edges.contains(&e) {
+                            additional_edges.push(e);
+                        }
                     }
-                    use std::io::Write;
-                    let mut file = File::create("data/wiki_sparse.txt").unwrap();
-                    for &[u, v] in t_g.get_edges().iter() {
-                        writeln!(&mut file, "{} {}", u, v).unwrap();
-                    }
+
+                    t.wiener(&additional_edges, &g);
 
 
 

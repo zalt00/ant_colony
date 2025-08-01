@@ -270,7 +270,7 @@ impl RootedTree {
 
     pub fn update_leaves(&mut self) {}
 
-    pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut Vec<u64>) {
+    pub fn precalcul_sizes(&mut self, _u: usize, tab: &mut [u64]) {
         static mut QUEUE: [usize; 50_000_000] = [0; 50000000];
         let mut i = 0;
         let mut j = 0;

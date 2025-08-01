@@ -77,6 +77,15 @@ pub trait GraphCore: Clone {
         s / self.vertex_count() as f64 / (self.vertex_count()-1) as f64
     }
 
+    fn wiener(&self, my_dist_matrix_buffer: &mut Vec<u32>) -> u64 {
+        self.update_dist_matrix(my_dist_matrix_buffer);   
+        let mut s = 0;
+        for i in 0..(self.vertex_count() * self.vertex_count()) {
+            s += my_dist_matrix_buffer[i] as u64;
+        }
+        s / 2
+    }
+
     fn get_edge_betweeness_centrality(&self) -> Vec<f64> {
         use rustworkx_core::petgraph;
         use rustworkx_core::petgraph::visit::EdgeIndexable;
