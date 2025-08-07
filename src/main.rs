@@ -200,8 +200,8 @@ fn main() {
                     let n = gdt.n;
                     let (g, _, _) = gdt.graph_ebc_dist_matrix::<CompressedGraph>();
                     
-                    let mut prng = Prng::seed_from_u64(121);
-                    let g = CompressedGraph::random_graph(1000, 20000, &mut prng);
+                    let mut prng = Prng::seed_from_u64(13);
+                    let g = CompressedGraph::random_graph(1000, 10000, &mut prng);
                     let mut t = g.random_subtree(&mut prng);
                     let mut t = greedy_bfs(&g);
                     let mut t_g = t.to_graph(&g);
@@ -210,15 +210,48 @@ fn main() {
                     println!("{}", t.distance_sum());
 
                     let edges = g.get_edges();
-                    let mut additional_edges = Vec::new();
-                    while additional_edges.len() < 100 {
-                        let &e = edges.choose(&mut prng).unwrap();
-                        if !t.has_edge(e[0], e[1]) && !additional_edges.contains(&e) {
-                            additional_edges.push(e);
+                    let mut mistake = 0;
+                    for _ in 0..1000 {
+                        let mut additional_edges = Vec::new();
+                        while additional_edges.len() < 10 {
+                            let &e = edges.choose(&mut prng).unwrap();
+                            if !t.has_edge(e[0], e[1]) && !additional_edges.contains(&e) {
+                                additional_edges.push(e);
+                            }
                         }
-                    }
 
-                    t.wiener(&additional_edges, &g);
+                        let mut t_g1 = t_g.clone();
+                        for &e in &additional_edges {
+                            t_g1.add_edge_unckecked(e[0], e[1]);
+                        }
+                        let ws = t_g1.wiener(&mut vec![u32::MAX; n*n]);
+
+                        let mut additional_edges2 = Vec::new();
+                        while additional_edges2.len() < 10 {
+                            let &e = edges.choose(&mut prng).unwrap();
+                            if !t.has_edge(e[0], e[1]) && !additional_edges2.contains(&e) {
+                                additional_edges2.push(e);
+                            }
+                        }
+
+                        let mut t_g2 = t_g.clone();
+                        for &e in &additional_edges2 {
+                            t_g2.add_edge_unckecked(e[0], e[1]);
+                        }
+                        let ws2 = t_g2.wiener(&mut vec![u32::MAX; n*n]);
+
+
+                        let wiener_calc = t.wiener(&additional_edges, &g);
+                        let wiener_calc2 = t.wiener(&additional_edges2, &g);
+
+                        if (ws > ws2 && wiener_calc < wiener_calc2) || (ws < ws2 && wiener_calc > wiener_calc2) {
+                            mistake += 1;
+                            println!("calc: {}   {}", wiener_calc, wiener_calc2);
+                            println!("th:   {}   {}", ws, ws2);
+                        }
+
+                    }
+                    println!("mistake={}", mistake);
 
 
 

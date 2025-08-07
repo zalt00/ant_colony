@@ -43,7 +43,7 @@ disable_vecvec_bound_check = []
 fast = ["disable_vecvec_bound_check"]
 
 [lib]
-name = "mylib"
+name = "rust_vnsdisto"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
 

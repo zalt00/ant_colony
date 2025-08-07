@@ -25,9 +25,9 @@ pub struct VNS<T: GraphCore+GraphRng> {
 
     k: usize, // current neighborhood
     l: usize, // current neighborhood (VND)
-    neighborhood_strategies: &'static [NeighborhoodStrategies],
+    neighborhood_strategies: Vec<NeighborhoodStrategies>,
 
-    neighborhood_sample_sizes: &'static [usize],
+    neighborhood_sample_sizes: Vec<usize>,
 
     dist_matrix: Vec<u32>,
 
@@ -71,8 +71,33 @@ impl<T: GraphCore+GraphRng> VNS<T> {
 
         VNS { n, g, tree_buf,
             tarjan_solver, edges, prng, edge_betweeness_centrality,
-            k: 0, l: 0, neighborhood_strategies: &NEIGHBORHOOD_STRATEGIES[mode],
-            neighborhood_sample_sizes: &NEIGHBORHOOD_SAMPLE_SIZES[mode], dist_matrix,
+            k: 0, l: 0, neighborhood_strategies: NEIGHBORHOOD_STRATEGIES[mode].to_vec(),
+            neighborhood_sample_sizes: NEIGHBORHOOD_SAMPLE_SIZES[mode].to_vec(), dist_matrix,
+            recompute_distorsion: false, verbose: false,
+            old2new_buf, new2old_buf,
+            base_disto: INF 
+        }
+
+
+    }
+
+    pub fn new_custom_mode(g: T, seed_u64: u64, edge_betweeness_centrality: Vec<f64>, dist_matrix: Vec<u32>, mode_s: Vec<NeighborhoodStrategies>,
+    sample_sizes: Vec<usize>) -> VNS<T> {
+
+
+        let prng = Prng::seed_from_u64(seed_u64);
+        let edges = g.get_edges();
+        let n = g.vertex_count();
+        let tarjan_solver = TarjanSolver::new(n, &g);
+        let tree_buf = g.clone_empty();
+        let old2new_buf = vec![usize::MAX; n];
+        let new2old_buf = vec![usize::MAX; n];
+
+
+        VNS { n, g, tree_buf,
+            tarjan_solver, edges, prng, edge_betweeness_centrality,
+            k: 0, l: 0, neighborhood_strategies: mode_s,
+            neighborhood_sample_sizes: sample_sizes, dist_matrix,
             recompute_distorsion: false, verbose: false,
             old2new_buf, new2old_buf,
             base_disto: INF 

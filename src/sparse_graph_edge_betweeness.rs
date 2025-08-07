@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, RootedTree}, utils::{IterExt, PairExt}};
+use crate::{graph::{compressed_graph::CompressedGraph, graph_core::GraphCore, RootedTree}, utils::{CompressedVecVec, IterExt, PairExt}};
 
 
 
@@ -9,20 +9,16 @@ impl RootedTree {
         let mut size = vec![0; self.n];
 
         self.precalcul_sizes(self.root, &mut size);
-        let mut covered_edges = HashSet::new();
-        let mut inter_count = 0;
+
+        let mut ebc_hmap = HashMap::new();
+        for e in self.edges() {
+            ebc_hmap.insert(e.sorted(), size[e[0]] * (self.n as u64 - size[e[0]]));
+        }
+
+        let base_ebc_hmap = ebc_hmap.clone();
+
         for e in additional_edges {
             let cycle = self.path_between(e[0], e[1]);
-            println!("{}", cycle[0].len() + cycle[1].len() - 1);
-            let mut s = 0;
-            for &u in cycle[0][..cycle[0].len() - 1].iter() {
-                s += size[u] * (self.n as u64 - size[u]);
-            }
-
-            for &u in cycle[1][..cycle[1].len() - 1].iter() {
-                s += size[u] * (self.n as u64 - size[u]);
-            }
-
 
             let mut node_sizes = [vec![0; cycle[0].len()], vec![0; cycle[1].len()]];
             for ci in [0,1] {
@@ -37,7 +33,7 @@ impl RootedTree {
                     let u_prev = cycle[ci][i - 1];
                     node_sizes[ci][i] -= size[u_prev];
                     if ci == 1 && i == cycle[ci].len() - 1 {
-                        println!("ya");
+                        //println!("ya");
                         *node_sizes[0].last_mut().unwrap() -= size[u_prev];
                     }
                 }
@@ -63,104 +59,56 @@ impl RootedTree {
                 assert!([u, v] == *e || [v, u] == *e);
             }
 
-            //let mm = if full_cycle.len() % 2 == 1 {full_cycle.len() / 2;
-            let mut cumulative_sums = vec![0; full_cycle.len()*2];
-            let mut cumulative_weighted_sums = vec![0; full_cycle.len()*2];
+            let mut ebc = vec![0; full_cycle.len()];
 
-            cumulative_sums[0] = full_cycle_sizes[0]; // a_0 + a_1 + ...
-            cumulative_weighted_sums[0] = 0;          // 0*a_0 + 1*a_1 + ...
-            for i in 1..cumulative_sums.len() {
-                cumulative_sums[i] = cumulative_sums[i-1] 
-                    + full_cycle_sizes[i % full_cycle_sizes.len()];
-                cumulative_weighted_sums[i] = cumulative_weighted_sums[i-1] 
-                    + full_cycle_sizes[i % full_cycle_sizes.len()] * i as u64;
+            let half_len = full_cycle.len() / 2;
+            let cycle_len = full_cycle.len();
+            for i in 0..full_cycle.len() {
+                for path_len in 1..=half_len {
+                    if path_len * 2 == cycle_len && i >= half_len {
+                        continue;
+                    } else {
+                        let w = full_cycle_sizes[i] * full_cycle_sizes[(i + path_len) % cycle_len];
+                        for j in i..(i+path_len) {
+                            ebc[j % cycle_len] += w;
+                        }
+                    }
+                }
             }
-            let mut s2 = 0;
-            let mm = full_cycle.len() / 2;
 
-            if full_cycle.len() % 2 == 1 {
-                for i in 0..full_cycle.len() {
-                    // somme des poids pour tous les chemins de taille
-                    // <= mm partant de i, en multipliant par le nombre d'arete du chemin
-                    // pour compter la contribution du chemin à la ebc de chaque arete
+            // update ebc
+            for i in 0..full_cycle.len() {
+                let u = full_cycle[i];
+                let v = full_cycle[(i+1)%cycle_len];
 
-                    // a_{i+1} + ... + a_{mm+i} 
-                    let unw_sum = cumulative_sums[mm + i] - cumulative_sums[i];
-
-                    // (i+1)a_{i+1} + ... + (mm+i)a_{mm+i} 
-                    let w_sum = cumulative_weighted_sums[mm + i] - cumulative_weighted_sums[i];
-                    
-                    // a_{i+1} + 2a_{i+2} + ...
-                    let w_sum_corrected = w_sum - i as u64 * unw_sum;
-
-
-                    s2 += full_cycle_sizes[i] * w_sum_corrected;
+                let e = [u, v].sorted();
+                if base_ebc_hmap.contains_key(&e) {
+                    ebc_hmap.entry(e).and_modify(|val| {
+                        *val = *val + ebc[i] - base_ebc_hmap[&e];
+                    });
+                } else {
+                    ebc_hmap.insert([u, v].sorted(), ebc[i]);
                 }
-            } else {
-                for i in 0..full_cycle.len() {
-                    // somme des poids pour tous les chemins de taille
-                    // <= mm-1 partant de i, en multipliant par le nombre d'arete du chemin
-                    // pour compter la contribution du chemin à la ebc de chaque arete
-
-                    // a_{i+1} + ... + a_{mm+i-1} 
-                    let unw_sum = cumulative_sums[mm + i - 1] - cumulative_sums[i];
-
-                    // (i+1)a_{i+1} + ... + (mm+i)a_{mm+i-1} 
-                    let w_sum = cumulative_weighted_sums[mm + i - 1] - cumulative_weighted_sums[i];
-                    
-                    // a_{i+1} + 2a_{i+2} + ...
-                    let w_sum_corrected = w_sum - i as u64 * unw_sum;
-
-
-                    s2 += full_cycle_sizes[i] * w_sum_corrected;
-                }
-
-                // on ajoute a part les chemins de taille mm pour eviter de les compter 2 fois
-                for i in 0..mm {
-                    s2 += full_cycle_sizes[i] * full_cycle_sizes[i + mm] * mm as u64;
-                }
-            
 
             }
-            // println!("{:?}, {:?}", full_cycle, full_cycle_sizes);
-            // for u in full_cycle.iter() {
-            //     println!("arity={}", self.arity[*u]);
-            //     println!("u: {}, size={}", *u, size[*u]);
 
-            // }
-            println!("cycle length={}", full_cycle.len());
-            println!("cycle: {:?}", full_cycle);
 
-            let wiener_calc = self.distance_sum() - s + s2;
-            println!("wiener_calc = {}", wiener_calc);
-            // let mut t_g = self.to_graph(g);
-            // t_g.add_edge_unckecked(e[0], e[1]);
+            // println!("cycle length={}", full_cycle.len());
+            // println!("cycle: {:?}", full_cycle);
+
+            //let wiener_calc = ebc_hmap.values().sum::<u64>();
+            // println!("wiener_calc = {}", wiener_calc);
             // let wiener_slow = t_g.wiener(&mut vec![u32::MAX; self.n*self.n]);
             // println!("wiener 2 =    {}", wiener_slow);
 
-            // assert_eq!(wiener_calc, wiener_slow);
-            let mut intersecting = false;
-            let mut prev = *full_cycle.last().unwrap();
-            for &u in full_cycle.iter() {
-                if covered_edges.contains(&[prev, u].sorted()) {
-                    intersecting = true;
-                    println!("{:?}", [prev, u]);
-                } else {
-                    covered_edges.insert([prev, u].sorted());
-                }
-                prev = u;
-            }
-
-            if intersecting {
-                println!("intersecting");
-                inter_count += 1;
-            }
+            //assert_eq!(wiener_calc, wiener_slow);
 
         }
+        let wiener_calc = ebc_hmap.values().sum::<u64>();
 
-        println!("inter_count: {}, ratio: {}%", inter_count, inter_count as f64 / additional_edges.len() as f64 * 100.0);
+        // println!("inter_count: {}, ratio: {}%", inter_count, inter_count as f64 / additional_edges.len() as f64 * 100.0);
 
-        todo!()
+        wiener_calc
     }
 }
 

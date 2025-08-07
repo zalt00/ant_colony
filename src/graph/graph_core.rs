@@ -10,7 +10,7 @@ pub trait GraphCore: Clone {
     fn get_neighbors(&self, i: usize) -> &[usize];
     fn get_neighboor_count_unchecked(&self, i: usize) -> usize;
     fn vertex_count(&self) -> usize;
-    fn from_edges(n: usize, edges: &Vec<[usize; 2]>) -> Self;
+    fn from_edges(n: usize, edges: &[[usize; 2]]) -> Self;
     fn add_edge_unckecked(&mut self, u: usize, v: usize);
     fn reset(&mut self);
     fn clone_empty(&self) -> Self;
@@ -43,7 +43,7 @@ pub trait GraphCore: Clone {
         edges
     }
 
-    fn from_edges_only(edges: &Vec<[usize; 2]>) -> Self {
+    fn from_edges_only(edges: &[[usize; 2]]) -> Self {
         let mut n = 1;
         for &[u, v] in edges {
             n = n.max(u).max(v);

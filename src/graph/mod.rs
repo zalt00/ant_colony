@@ -2,6 +2,7 @@ use std::usize;
 use std::{fmt::Debug, u32};
 
 use bincode::{Decode, Encode};
+use pyo3::pyclass;
 use rustworkx_core::petgraph;
 use serde::{Deserialize, Serialize};
 
@@ -146,7 +147,7 @@ impl GraphCore for MatGraph {
         self.n
     }
     
-    fn from_edges(n:usize, edges: &Vec<[usize; 2]>) -> Self {
+    fn from_edges(n:usize, edges: &[[usize; 2]]) -> Self {
         let mut g = Self::new_empty(n);
         for &[u, v] in edges {
             g.add_edge_unckecked(u, v);
@@ -192,7 +193,7 @@ impl GraphCore for MatGraph {
 impl GraphRng for MatGraph {}
 
 
-
+#[pyclass]
 #[derive(Clone, Encode, Decode, Serialize, Deserialize)]
 pub struct RootedTree {
     pub n: usize,

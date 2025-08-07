@@ -1,3 +1,5 @@
+use pyo3::pyclass;
+
 use crate::{graph::{graph_core::GraphCore, graph_generator::GraphRng}, utils::CompressedVecVec};
 
 
@@ -7,6 +9,7 @@ use crate::{graph::{graph_core::GraphCore, graph_generator::GraphRng}, utils::Co
 
 
 #[derive(Clone, Default)]
+#[pyclass]
 pub struct CompressedGraph {
     pub(crate) n: usize,
     adj_array: CompressedVecVec<usize>,
@@ -19,7 +22,7 @@ impl CompressedGraph {
         CompressedGraph { n, adj_array, degrees: vec![0; n] }
     }
 
-    fn update_from_edges(&mut self, edges: &Vec<[usize; 2]>) {
+    fn update_from_edges(&mut self, edges: &[[usize; 2]]) {
         // no clear
         for &[u, v] in edges {
             self.add_edge_unckecked(u, v);
@@ -38,7 +41,7 @@ impl GraphCore for CompressedGraph {
         self.n
     }
     
-    fn from_edges(n: usize, edges: &Vec<[usize; 2]>) -> CompressedGraph {
+    fn from_edges(n: usize, edges: &[[usize; 2]]) -> CompressedGraph {
         let mut degrees = vec![0; n];
         for &[u, v] in edges {
             degrees[u] += 1;
